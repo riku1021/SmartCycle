@@ -1,11 +1,11 @@
 import { Box } from "@chakra-ui/react";
 import { useLocation } from "@tanstack/react-router";
 import type { FC, ReactNode } from "react";
-import AppFooterNav from "@/components/app-layout/app-footer-nav";
-import AppHeader from "@/components/app-layout/app-header";
-import AppSidebar from "@/components/app-layout/app-sidebar";
+import FooterNav from "@/layouts/footer-nav";
+import Header from "@/layouts/header";
+import Sidebar from "@/layouts/sidebar";
 
-type AppLayoutProps = {
+type LayoutProps = {
   title: string;
   subtitle: string;
   children: ReactNode;
@@ -13,7 +13,7 @@ type AppLayoutProps = {
   isMapLayout?: boolean;
 };
 
-const AppLayout: FC<AppLayoutProps> = ({
+const Layout: FC<LayoutProps> = ({
   title,
   subtitle,
   children,
@@ -31,7 +31,7 @@ const AppLayout: FC<AppLayoutProps> = ({
       minH="100vh"
       width="100%"
     >
-      <AppSidebar isActivePath={isActivePath} />
+      <Sidebar isActivePath={isActivePath} />
 
       <Box
         as="main"
@@ -43,13 +43,13 @@ const AppLayout: FC<AppLayoutProps> = ({
         px={{ base: isMapLayout ? 0 : 4, md: isMapLayout ? 0 : 8 }}
         py={{ base: isMapLayout ? 0 : 5, md: isMapLayout ? 0 : 8 }}
       >
-        <AppHeader hidden={hideHeader} subtitle={subtitle} title={title} />
+        <Header hidden={hideHeader} subtitle={subtitle} title={title} />
         {children}
       </Box>
 
-      <AppFooterNav isActivePath={isActivePath} />
+      <FooterNav isActivePath={isActivePath} />
     </Box>
   );
 };
 
-export default AppLayout;
+export default Layout;

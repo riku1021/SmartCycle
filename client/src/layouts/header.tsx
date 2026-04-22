@@ -1,13 +1,13 @@
 import { Box, Heading, Text } from "@chakra-ui/react";
 import type { FC } from "react";
 
-type AppHeaderProps = {
+type HeaderProps = {
   title: string;
   subtitle: string;
   hidden?: boolean;
 };
 
-const AppHeader: FC<AppHeaderProps> = ({ title, subtitle, hidden = false }) => {
+const Header: FC<HeaderProps> = ({ title, subtitle, hidden = false }) => {
   if (hidden) {
     return null;
   }
@@ -23,4 +23,4 @@ const AppHeader: FC<AppHeaderProps> = ({ title, subtitle, hidden = false }) => {
   );
 };
 
-export default AppHeader;
+export default Header;

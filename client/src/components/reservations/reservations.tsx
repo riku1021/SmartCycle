@@ -1,13 +1,13 @@
 import { Box, Button, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import type { FC } from "react";
 import { useState } from "react";
-import AppLayout from "@/components/app-layout/app-layout";
+import Layout from "@/layouts/layout";
 
 const ReservationsComponent: FC = () => {
   const [tab, setTab] = useState<"active" | "history">("active");
 
   return (
-    <AppLayout title="予約管理" subtitle="予約中・履歴の確認ができます">
+    <Layout title="予約管理" subtitle="予約中・履歴の確認ができます">
       <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" p={6}>
         <HStack gap={2.5} mb={4}>
           <Button
@@ -54,7 +54,7 @@ const ReservationsComponent: FC = () => {
           </SimpleGrid>
         )}
       </Box>
-    </AppLayout>
+    </Layout>
   );
 };
 

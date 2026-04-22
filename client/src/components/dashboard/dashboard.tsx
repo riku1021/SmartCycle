@@ -1,10 +1,10 @@
 import { Box, Grid, GridItem, Heading, Text } from "@chakra-ui/react";
 import type { FC } from "react";
-import AppLayout from "@/components/app-layout/app-layout";
+import Layout from "@/layouts/layout";
 
 const DashboardComponent: FC = () => {
   return (
-    <AppLayout title="管理画面" subtitle="現在の駐輪状況を確認できます">
+    <Layout title="管理画面" subtitle="現在の駐輪状況を確認できます">
       <Grid gap={4} mb={4} templateColumns="repeat(auto-fit, minmax(220px, 1fr))">
         <GridItem
           bgGradient="linear(to-br, #4f46e5, #4338ca)"
@@ -44,7 +44,7 @@ const DashboardComponent: FC = () => {
           sample のグラフ領域に相当。API 接続フェーズで実データへ差し替えます。
         </Text>
       </Box>
-    </AppLayout>
+    </Layout>
   );
 };
 

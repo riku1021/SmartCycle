@@ -4,11 +4,11 @@ import type { FC } from "react";
 import { FaGear, FaList, FaMapLocationDot } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
 
-type AppFooterNavProps = {
+type FooterNavProps = {
   isActivePath: (path: string) => boolean;
 };
 
-const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
+const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
   const navigate = useNavigate();
   const handleMove = async (
     to: "/dashboard" | "/map" | "/lots" | "/reservations" | "/settings"
@@ -167,4 +167,4 @@ const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
   );
 };
 
-export default AppFooterNav;
+export default FooterNav;

@@ -1,10 +1,10 @@
 import { Box, Input, SimpleGrid, Text } from "@chakra-ui/react";
 import type { FC } from "react";
-import AppLayout from "@/components/app-layout/app-layout";
+import Layout from "@/layouts/layout";
 
 const SettingsComponent: FC = () => {
   return (
-    <AppLayout title="設定" subtitle="プロフィールと通知設定を編集できます">
+    <Layout title="設定" subtitle="プロフィールと通知設定を編集できます">
       <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" p={6}>
         <SimpleGrid columns={{ base: 1, md: 2 }} gap={3}>
           <Box>
@@ -33,7 +33,7 @@ const SettingsComponent: FC = () => {
           </Box>
         </SimpleGrid>
       </Box>
-    </AppLayout>
+    </Layout>
   );
 };
 

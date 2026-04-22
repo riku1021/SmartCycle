@@ -4,7 +4,7 @@ import L, { type GeoJSON, type Map as LeafletMap } from "leaflet";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaLocationArrow, FaLocationCrosshairs, FaXmark } from "react-icons/fa6";
-import AppLayout from "@/components/app-layout/app-layout";
+import Layout from "@/layouts/layout";
 
 type ParkingLot = {
   id: number;
@@ -237,7 +237,7 @@ const MapComponent: FC = () => {
     statusClass === "full" ? "満車" : statusClass === "few" ? "残りわずか" : "空きあり";
 
   return (
-    <AppLayout hideHeader isMapLayout subtitle="地図から近くの駐輪場を探せます" title="マップ検索">
+    <Layout hideHeader isMapLayout subtitle="地図から近くの駐輪場を探せます" title="マップ検索">
       <Box
         h="100%"
         minH={{ base: "calc(100vh - 74px)", md: "100vh" }}
@@ -354,7 +354,7 @@ const MapComponent: FC = () => {
           </Flex>
         </Box>
       </Box>
-    </AppLayout>
+    </Layout>
   );
 };
 

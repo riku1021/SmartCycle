@@ -1,6 +1,6 @@
 import { Box, Button, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import type { FC } from "react";
-import AppLayout from "@/components/app-layout/app-layout";
+import Layout from "@/layouts/layout";
 
 const mockLots = [
   { id: 1, name: "梅田ステーション東", status: "空きあり", walk: "徒歩 4分" },
@@ -10,7 +10,7 @@ const mockLots = [
 
 const LotsComponent: FC = () => {
   return (
-    <AppLayout title="駐輪場一覧" subtitle="条件でフィルタしながら駐輪場を探せます">
+    <Layout title="駐輪場一覧" subtitle="条件でフィルタしながら駐輪場を探せます">
       <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" p={6}>
         <HStack gap={2.5} mb={4}>
           <Button bg="#4f46e5" borderRadius="full" color="white" type="button">
@@ -36,7 +36,7 @@ const LotsComponent: FC = () => {
           ))}
         </SimpleGrid>
       </Box>
-    </AppLayout>
+    </Layout>
   );
 };
 

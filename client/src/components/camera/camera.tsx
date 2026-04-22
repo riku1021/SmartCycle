@@ -1,7 +1,7 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import { fetchLatestDetection, type LatestDetectionResponse, sendCameraFrame } from "@/api/camera";
-import AppLayout from "@/components/app-layout/app-layout";
+import Layout from "@/layouts/layout";
 
 const CameraComponent: FC = () => {
   const POLLING_INTERVAL_MS = 3000;
@@ -141,7 +141,7 @@ const CameraComponent: FC = () => {
   }, [isStreaming, runPollingCycle, stopPolling]);
 
   return (
-    <AppLayout subtitle="HTTP Polling" title="カメラ画像">
+    <Layout subtitle="HTTP Polling" title="カメラ画像">
       <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="16px" p={6}>
         <chakra.video
           aspectRatio={videoAspectRatio}
@@ -204,7 +204,7 @@ const CameraComponent: FC = () => {
         ) : null}
         <Box as="canvas" display="none" ref={canvasRef} />
       </Box>
-    </AppLayout>
+    </Layout>
   );
 };
 

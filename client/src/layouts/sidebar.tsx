@@ -6,11 +6,11 @@ import { MdDashboard } from "react-icons/md";
 import { clearAccessToken } from "@/lib/apiClient";
 import { showConfirmationAlert } from "@/shared/alerts/alerts";
 
-type AppSidebarProps = {
+type SidebarProps = {
   isActivePath: (path: string) => boolean;
 };
 
-const AppSidebar: FC<AppSidebarProps> = ({ isActivePath }) => {
+const Sidebar: FC<SidebarProps> = ({ isActivePath }) => {
   const navigate = useNavigate();
   const handleMove = async (
     to: "/dashboard" | "/map" | "/lots" | "/reservations" | "/camera" | "/settings"
@@ -193,4 +193,4 @@ const AppSidebar: FC<AppSidebarProps> = ({ isActivePath }) => {
   );
 };
 
-export default AppSidebar;
+export default Sidebar;
