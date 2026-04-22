@@ -1,0 +1,57 @@
+# =============================================================================
+# ビルドコンテキスト: リポジトリルート（.）
+# docker compose / docker build -f client|server/Dockerfile .
+# =============================================================================
+
+# --- Client ---
+client/node_modules
+client/.pnpm-store
+client/dist
+client/dist-ssr
+client/coverage
+client/.vite
+client/.turbo
+client/tests
+
+# --- Server ---
+server/.venv
+server/venv
+server/__pycache__
+server/**/__pycache__
+server/.pytest_cache
+server/.mypy_cache
+server/.ruff_cache
+server/tests
+server/docs
+server/envs/.env.dev
+server/envs/.env.prod
+
+# --- ルート・その他（イメージ COPY 対象外のノイズ軽減）---
+.github
+lefthook.yml
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# バージョン管理
+.git
+.gitignore
+
+# エディタ
+.idea
+.vscode
+.cursor
+.DS_Store
+Thumbs.db
+
+# 環境（実行時に compose / run で渡す）
+.env
+.env.*
+!.env.example
+!**/envs/.env.example
+
+# ドキュメント
+*.md
+LICENSE

@@ -1,0 +1,71 @@
+# =============================================================================
+# smart-cycle Docker Compose（フロントエンド + バックエンド API）
+# 実行コマンド: docker compose up --build
+# 設定切り替え: ルート .env の値を変更
+# =============================================================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      target: ${BACKEND_DOCKER_TARGET:-runtime-dev}
+    container_name: smart-cycle-backend
+    ports:
+      - "${BACKEND_HOST_PORT:-8000}:8000"
+    env_file:
+      - ./server/envs/.env
+    volumes:
+      - ${BACKEND_SRC_VOLUME:-./server/src:/app/src}
+    environment:
+      - ENV=${APP_ENV:-dev}
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - BACKEND_CMD=${BACKEND_CMD:-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload}
+    command: sh -c "$$BACKEND_CMD"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - smart-cycle-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+      target: ${FRONTEND_DOCKER_TARGET:-development}
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    container_name: smart-cycle-frontend
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:${FRONTEND_CONTAINER_PORT:-3000}"
+    volumes:
+      - ${FRONTEND_SRC_VOLUME:-./client:/app}
+      - ${FRONTEND_NODE_MODULES_VOLUME:-/app/node_modules}
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+    stdin_open: true
+    tty: true
+    working_dir: /app
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - smart-cycle-network
+
+# =============================================================================
+# ネットワーク設定
+# =============================================================================
+networks:
+  smart-cycle-network:
+    driver: bridge

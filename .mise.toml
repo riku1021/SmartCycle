@@ -1,0 +1,8 @@
+# Python 3.13.x 系は server/.python-version / server/pyproject.toml requires-python と揃える（Renovate が同一 PR 更新）。
+# mise install のあと、uv 連携を揃えるなら: mise sync python --uv
+# https://mise.jdx.dev/cli/sync/python.html#uv
+[tools]
+python = "3.13.12"
+node = "24.14.1"
+pnpm = "10.33.0"
+uv = "0.11.3"

@@ -1,0 +1,17 @@
+# 単一パッケージ workspace（catalog / minimumReleaseAge を有効化するため packages に . を指定）
+# https://pnpm.io/catalogs
+packages:
+  - .
+
+catalog:
+  react: 19.2.4
+  react-dom: 19.2.4
+  "@types/react": 19.2.14
+  "@types/react-dom": 19.2.3
+  typescript: 6.0.2
+  vite: 8.0.3
+  "@vitejs/plugin-react-swc": 4.3.0
+
+# 公開直後のバージョンを避ける（分）。pnpm 10.16+
+# https://pnpm.io/settings
+minimumReleaseAge: 1440

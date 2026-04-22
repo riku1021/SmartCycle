@@ -1,0 +1,92 @@
+# 公式ドキュメントのベストプラクティスに沿った設定
+# - glob: ステージ済みパスはリポジトリルート基準（例: client/src/...）
+# - root: 各ジョブの CWD (Current Working Directory) を指定
+# - {staged_files}: 対象のステージ済みファイル一覧に展開（root 指定時はその配下の相対パス）
+# - stage_fixed: フォーマッター／lint --fix で変更されたファイルを自動ステージ
+# - glob_matcher: doublestar … ** をディレクトリ深さ込みでマッチ（server の glob と整合）
+#
+# parallel: false … client は sort-package-json → Biome → 型チェック → build の順を保証。
+#   server はその後に format → lint → typecheck の順で実行。
+glob_matcher: doublestar
+pre-commit:
+  parallel: false
+  jobs:
+    # ========================================================
+    # Client（ステージ済みの ts / tsx / js / jsx / mjs / cjs のみ対象 & package）
+    # ========================================================
+    - name: client-sort-package-json
+      root: client/
+      glob: "client/package.json"
+      run: pnpm run sort-package-json:fix
+      stage_fixed: true
+      description: "Sort client/package.json keys (sort-package-json)"
+
+    - name: client-format-lint
+      root: client/
+      glob: "client/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss,yml,yaml}"
+      run: pnpm fix
+      stage_fixed: true
+      description: "Format and lint client (Biome)"
+
+    - name: client-typecheck
+      root: client/
+      glob: "client/**/*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: pnpm exec tsc -b --noEmit
+      description: "Typecheck client (tsc project references)"
+
+    - name: client-build
+      root: client/
+      glob: "client/**"
+      run: pnpm run build
+      description: "Production build client (tsc -b && vite build)"
+
+    # ========================================================
+    # Server（ステージ済みの .py / .ipynb のみ対象）
+    # ========================================================
+    - name: server-format
+      root: server/
+      glob: "server/**/*.{py,ipynb}"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+      description: "Format server Python (Ruff)"
+
+    - name: server-lint
+      root: server/
+      glob: "server/**/*.{py,ipynb}"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+      description: "Lint server Python (Ruff)"
+
+    - name: server-typecheck
+      root: server/
+      glob: "server/**/*.{py,ipynb}"
+      run: uv run mypy {staged_files}
+      description: "Typecheck server (mypy)"
+
+pre-push:
+  jobs:
+    # ========================================================
+    # push 前に origin/main または upstream が新しいコミットを持っている場合は push をブロック。
+    # ========================================================
+    - name: ensure-up-to-date-before-push
+      run: |
+        git fetch origin main --quiet
+        if ! git merge-base --is-ancestor origin/main HEAD; then
+          echo "Push blocked: local branch is behind origin/main."
+          echo "Please run: git rebase origin/main"
+          echo "After resolving conflicts locally, push again."
+          exit 1
+        fi
+        upstream_ref="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+        if [ -n "$upstream_ref" ] && [ "$upstream_ref" != "origin/main" ]; then
+          upstream_remote="${upstream_ref%%/*}"
+          upstream_branch="${upstream_ref#*/}"
+          git fetch "$upstream_remote" "$upstream_branch" --quiet
+          if ! git merge-base --is-ancestor "$upstream_ref" HEAD; then
+            echo "Push blocked: local branch is behind $upstream_ref."
+            echo "Please run: git rebase $upstream_ref"
+            echo "After resolving conflicts locally, push again."
+            exit 1
+          fi
+        fi
+      description: "Block push if origin/main or upstream has new commits"
