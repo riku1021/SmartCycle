@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import load_settings
+from src.infrastructure.db.session import close_db, init_db
 from src.infrastructure.http import setup_exception_handlers
 from src.infrastructure.logger.logger import logger
 from src.infrastructure.middleware import setup_middleware
@@ -30,12 +31,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # 設定を読み込み
     settings = load_settings()
     logger.info(f"サーバー設定: host={settings.host}, port={settings.port}")
+    init_db(settings.database_url)
+    logger.info("データベース接続を初期化しました")
 
     try:
         yield
     finally:
         # シャットダウン
         logger.info("FastAPI アプリケーションをシャットダウンしています...")
+        await close_db()
+        logger.info("データベース接続を解放しました")
         logger.info("シャットダウン処理が完了しました")
 
 

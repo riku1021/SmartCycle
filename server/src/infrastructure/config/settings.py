@@ -85,23 +85,18 @@ class Settings(BaseSettings):
     read_timeout: int = Field(default=30, alias="READ_TIMEOUT")
     write_timeout: int = Field(default=30, alias="WRITE_TIMEOUT")
 
-    # ==========================================================================
-    # TODO: 以下に設定フィールドを追加してください
-    # ==========================================================================
-    #
-    # フィールドの例:
-    #
-    # # 外部API設定
-    # external_api_key: str = Field(alias="EXTERNAL_API_KEY")
-    # external_api_url: str = Field(default="https://api.example.com", alias="EXTERNAL_API_URL")
-    #
-    # # データベース設定
-    # db_host: str = Field(alias="DB_HOST")
-    # db_port: int = Field(default=5432, alias="DB_PORT")
-    # db_name: str = Field(alias="DB_NAME")
-    # db_user: str = Field(alias="DB_USER")
-    # db_password: str = Field(alias="DB_PASSWORD")
-    # ==========================================================================
+    database_url: str = Field(
+        ...,
+        alias="DATABASE_URL",
+        description="SQLAlchemy async URL (例: postgresql+asyncpg://...)",
+    )
+    jwt_secret: str = Field(
+        ...,
+        min_length=16,
+        alias="JWT_SECRET",
+    )
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(default=60 * 24, alias="JWT_EXPIRE_MINUTES")
 
     model_config = SettingsConfigDict(
         env_file=None,  # load_settings()で動的に設定
@@ -182,7 +177,14 @@ def load_settings() -> Settings:
     env_files = get_env_file_path()
 
     if not env_files:
-        required_env_keys = ("HOST", "PORT", "READ_TIMEOUT", "WRITE_TIMEOUT")
+        required_env_keys = (
+            "HOST",
+            "PORT",
+            "READ_TIMEOUT",
+            "WRITE_TIMEOUT",
+            "DATABASE_URL",
+            "JWT_SECRET",
+        )
         missing_keys = [key for key in required_env_keys if key not in os.environ]
         if missing_keys:
             joined = ", ".join(missing_keys)
@@ -198,7 +200,7 @@ def load_settings() -> Settings:
             case_sensitive=False,
         )
 
-    settings = EnvironmentSettings()
+    settings = EnvironmentSettings()  # type: ignore[call-arg]
 
     # ログに読み込んだファイルを記録
     from ...infrastructure.logger.logger import logger

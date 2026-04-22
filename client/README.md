@@ -26,6 +26,11 @@ pnpm install
 
 雛形は [`envs/.env.example`](./envs/.env.example) です。API のベース URL 等は `VITE_*` を参照（詳細はリポジトリルートの README および `src/config/env.ts`）。
 
+## 認証
+
+- バックエンドの `POST /auth/signup`・`POST /auth/login` で JWT を受け取り、[`src/lib/apiClient.ts`](./src/lib/apiClient.ts) の `setAccessToken` で `localStorage` に保存して以降のリクエストに付与します。
+- 画面は [`src/routes/login/`](./src/routes/login/) など。`GET /auth/me` でログイン状態を確認できます。
+
 ## リポジトリ全体
 
 Docker の起動手順・URL は、リポジトリルートの [README.md](../README.md) を参照してください。

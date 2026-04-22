@@ -5,6 +5,29 @@
 # =============================================================================
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: smart-cycle-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartcycle}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartcycle}
+      POSTGRES_DB: ${POSTGRES_DB:-smartcycle}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - smart-cycle-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-smartcycle} -d ${POSTGRES_DB:-smartcycle}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - smart-cycle-network
+
   backend:
     build:
       context: .
@@ -17,12 +40,19 @@ services:
       - ./server/envs/.env
     volumes:
       - ${BACKEND_SRC_VOLUME:-./server/src:/app/src}
+      - ./server/alembic:/app/alembic
+      - ./server/alembic.ini:/app/alembic.ini
     environment:
       - ENV=${APP_ENV:-dev}
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - BACKEND_CMD=${BACKEND_CMD:-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload}
-    command: sh -c "$$BACKEND_CMD"
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://smartcycle:smartcycle@postgres:5432/smartcycle}
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars-ok}
+    command: sh -c "uv run alembic -c /app/alembic.ini upgrade head && $$BACKEND_CMD"
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -66,6 +96,9 @@ services:
 # =============================================================================
 # ネットワーク設定
 # =============================================================================
+volumes:
+  smart-cycle-pgdata:
+
 networks:
   smart-cycle-network:
     driver: bridge

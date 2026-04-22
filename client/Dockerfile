@@ -19,8 +19,8 @@ COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
 # =============================================================================
 FROM base AS development
 
-# 開発用依存関係インストール（devDependenciesも含む）
-RUN pnpm install
+# 開発用依存関係インストール
+RUN pnpm install --frozen-lockfile
 
 # アプリケーションコードのコピー
 COPY client/ .

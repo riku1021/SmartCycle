@@ -1,15 +1,7 @@
-import { createEnv } from "@t3-oss/env-core";
-import { z } from "zod";
-
+/** Vite の `VITE_*` とローカル開発用デフォルト（外部パッケージ不要） */
 const DEFAULT_API_BASE_URL = "http://localhost:8000";
 
-export const env = createEnv({
-  clientPrefix: "VITE_",
-  client: {
-    VITE_API_BASE_URL: z.url().default(DEFAULT_API_BASE_URL),
-  },
-  runtimeEnv: import.meta.env,
-  emptyStringAsUndefined: true,
-});
+const raw = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL = typeof raw === "string" && raw.length > 0 ? raw : DEFAULT_API_BASE_URL;
 
-export const API_BASE_URL = env.VITE_API_BASE_URL;
+export const env = { VITE_API_BASE_URL: API_BASE_URL } as const;

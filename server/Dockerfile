@@ -95,6 +95,8 @@ ENV ENV=dev \
 
 COPY --from=builder-dev /app/.venv /app/.venv
 COPY server/pyproject.toml server/uv.lock ./
+COPY server/alembic ./alembic
+COPY server/alembic.ini ./
 COPY server/src/ ./src/
 
 EXPOSE 8000

@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { FC } from "react";
 import { useState } from "react";
-import { apiClient } from "@/lib/apiClient";
+import { apiClient, getAccessToken } from "@/lib/apiClient";
 
 const Example: FC = () => {
   const [responseMessage, setResponseMessage] = useState("未通信");
@@ -34,6 +34,11 @@ const Example: FC = () => {
 };
 
 export const Route = createFileRoute("/example/")({
+  beforeLoad: () => {
+    if (!getAccessToken()) {
+      throw redirect({ to: "/login" });
+    }
+  },
   component: Example,
 });
 

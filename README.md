@@ -1,5 +1,7 @@
 # SmartCycle
 
+フロントエンドの詳細は [client/README.md](client/README.md)、バックエンドは [server/README.md](server/README.md) を参照してください。
+
 ## セットアップ
 
 [mise](https://mise.jdx.dev/) が未導入なら、[公式のインストール手順](https://mise.jdx.dev/installing-mise.html)（[Getting Started](https://mise.jdx.dev/getting-started.html) など）から自分の環境に合う方法を選んで入れてください。
@@ -37,7 +39,7 @@ uv sync
 
 バックエンドは **`server/envs/.env`** から設定を読み込みます。テンプレートは [`server/envs/.env.example`](server/envs/.env.example) です。
 
-`docker compose` 利用時は、`docker-compose.yml` の `env_file: ./server/envs/.env` で同じファイルがコンテナに渡ります。Firebase 鍵ファイルは compose の `volumes` でコンテナ内パスと一致させてください。
+`docker compose` 利用時は **`postgres`** サービスが同時に起動し、`docker-compose.yml` の `environment` により `DATABASE_URL` などがバックエンドに渡る既定値を使います。ローカル専用の上書きは `server/envs/.env` に記述します（`env_file: ./server/envs/.env`）。
 
 フロントエンドも `.env` ベースに統一します。ルートの `.env` に `VITE_API_BASE_URL` を定義してください（雛形は [`client/envs/.env.example`](client/envs/.env.example)）。
 
