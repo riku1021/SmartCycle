@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCycle - モダンWeb</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 通知エリア -->
+<div id="notification-area"></div>
+
+<!-- 認証・アカウント作成画面 (初期表示) -->
+<div id="auth-screen" class="screen full-screen active">
+    <!-- 背景のアニメーション効果用 -->
+    <div class="auth-bg"></div>
+
+    <div class="auth-container">
+        <!-- 左側: ブランドサイド -->
+        <div class="auth-side-brand">
+            <div class="brand-logo-large"><i class="fa-solid fa-bicycle"></i></div>
+            <h1 style="font-size: 3rem; font-weight: 800; margin-bottom: 10px;">SmartCycle</h1>
+            <p style="font-size: 1.2rem; opacity: 0.9;">未来の駐輪体験を、今ここに。</p>
+        </div>
+
+        <!-- 右側: フォームサイド -->
+        <div class="auth-side-form">
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tab-login" onclick="toggleAuthMode('login')">ログイン</div>
+                <div class="auth-tab" id="tab-signup" onclick="toggleAuthMode('signup')">新規登録</div>
+            </div>
+
+            <div class="auth-box">
+                <div id="auth-login-text">
+                    <h1>おかえりなさい</h1>
+                    <p>アカウント情報を入力してログインしてください。</p>
+                </div>
+                <div id="auth-signup-text" class="hidden" style="display:none;">
+                    <h1>はじめまして</h1>
+                    <p>わずか数秒で、次世代の駐輪ライフが始まります。</p>
+                </div>
+
+                <form onsubmit="event.preventDefault(); login();" class="auth-form">
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-envelope"></i> メールアドレス</label>
+                        <input type="email" id="auth-email" placeholder="user@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-lock"></i> パスワード</label>
+                        <input type="password" id="auth-password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="primary-btn" id="auth-submit-btn" style="padding: 18px; font-size: 1.1rem; margin-top: 10px;">
+                        ログインしてはじめる
+                    </button>
+
+                    <div id="auth-signup-extra" class="hidden" style="display:none; margin-top: 20px; font-size: 0.85rem; color: var(--text-secondary); text-align: center;">
+                        登録することで、<a href="#">利用規約</a>と<a href="#">プライバシーポリシー</a>に同意したことになります。
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Webアプリレイアウト -->
+<div id="app-layout" class="layout hidden">
+    <!-- サイドバー -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-bicycle fa-2x"></i>
+            <h2>SmartCycle</h2>
+        </div>
+        <div class="user-info">
+            <div class="avatar"><i class="fa-regular fa-user"></i></div>
+            <div class="name-role">
+                <div class="name" id="sidebar-user-name">ゲスト</div>
+                <div class="role">プレミアムユーザー</div>
+            </div>
+        </div>
+        <nav class="side-nav">
+            <a href="#" class="nav-item active" data-target="home-screen"><i class="fa-solid fa-chart-pie"></i> ダッシュボード</a>
+            <a href="#" class="nav-item" data-target="map-screen"><i class="fa-solid fa-map-location-dot"></i> マップ検索</a>
+            <a href="#" class="nav-item" data-target="search-screen"><i class="fa-solid fa-list"></i> 駐輪場一覧</a>
+            <a href="#" class="nav-item" data-target="reservations-screen"><i class="fa-solid fa-calendar-check"></i> 予約管理</a>
+            <a href="#" class="nav-item" data-target="profile-screen"><i class="fa-solid fa-gear"></i> 設定</a>
+        </nav>
+        <!-- ログアウト -->
+        <div style="margin-top: auto; padding: 20px;">
+            <a href="#" class="nav-item" style="color: var(--status-full);" onclick="logout()"><i class="fa-solid fa-arrow-right-from-bracket"></i> ログアウト</a>
+        </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <main class="main-content">
+
+        <!-- ホーム画面（ダッシュボード） -->
+        <div id="home-screen" class="content-screen active">
+            <header class="content-header">
+                <div class="header-titles">
+                    <h1>ダッシュボード</h1>
+                    <p class="subtitle" id="current-clock">--年--月--日 --:--:--</p>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                <!-- KPI Cards -->
+                <div class="card stat-card primary-gradient">
+                    <div class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                    <div class="stat-info">
+                        <h3 style="color: rgba(255,255,255,0.9);">全体稼働率</h3>
+                        <div class="value"><span id="total-occupancy-display">0</span>%</div>
+                        <div style="font-size:0.8rem; opacity:0.8; margin-top:4px;" id="total-usage-text">0 / 0台使用中</div>
+                    </div>
+                </div>
+
+                <div class="card stat-card">
+                    <div class="stat-icon" style="color:var(--status-full); background:#FEF2F2;"><i class="fa-solid fa-bicycle"></i></div>
+                    <div class="stat-info">
+                        <h3>満車</h3>
+                        <div class="value"><span id="full-lot-display">0</span></div>
+                        <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;" id="total-lot-text">全0駐輪場中</div>
+                    </div>
+                </div>
+
+                <div class="card stat-card">
+                    <div class="stat-icon" style="color:var(--status-warning); background:#FFFBEB;"><i class="fa-regular fa-calendar-check"></i></div>
+                    <div class="stat-info">
+                        <h3>アクティブ予約</h3>
+                        <div class="value"><span id="active-res-display">0</span></div>
+                        <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">現在進行中</div>
+                    </div>
+                </div>
+
+                <div class="card stat-card">
+                    <div class="stat-icon" style="color:var(--status-free); background:#ECFDF5;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="stat-info">
+                        <h3>機器異常</h3>
+                        <div class="value"><span>0</span></div>
+                        <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">全機器正常</div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="card chart-card" style="grid-column: span 1; min-width:0;">
+                    <div class="card-header" style="margin-bottom: 20px;">
+                        <h2 style="font-size: 1.1rem; font-weight:700;">駐輪場別稼働率</h2>
+                    </div>
+                    <div class="chart-container" style="height: 250px; position:relative;">
+                        <canvas id="congestionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card chart-card" style="grid-column: span 1; min-width:0;">
+                    <div class="card-header" style="margin-bottom: 20px;">
+                        <h2 style="font-size: 1.1rem; font-weight:700;">ステータス分布</h2>
+                    </div>
+                    <div class="chart-container" style="height: 250px; position:relative; display:flex; justify-content:center;">
+                        <canvas id="statusPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 予約管理画面 -->
+        <div id="reservations-screen" class="content-screen">
+            <header class="content-header">
+                <h1>予約管理</h1>
+                <button class="primary-btn sm" onclick="document.querySelector('[data-target=map-screen]').click()">+ 新規予約</button>
+            </header>
+
+            <div class="res-tabs" style="display:flex; background:#F1F5F9; border-radius:12px; padding:4px; margin-bottom:24px;">
+                <div class="res-tab active" id="res-tab-active" onclick="switchResTab('active')" style="flex:1; text-align:center; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold; background:white; box-shadow:0 1px 3px rgba(0,0,0,0.1); color:var(--primary-color);">利用中・予約中</div>
+                <div class="res-tab" id="res-tab-history" onclick="switchResTab('history')" style="flex:1; text-align:center; padding:12px; border-radius:8px; cursor:pointer; color:var(--text-secondary); font-weight:bold;">履歴 (<span id="history-count">0</span>)</div>
+            </div>
+
+            <div class="card full-height-card">
+                <!-- アクティブ用 -->
+                <div id="res-active-container">
+                    <div id="reservation-list-container" class="reservation-grid"></div>
+                    <div id="no-reservation-msg" class="empty-state">
+                        <i class="fa-regular fa-calendar-xmark fa-4x mb-4"></i>
+                        <h3>予約がありません</h3>
+                        <p style="margin-bottom: 24px;">マップや検索から予約できます</p>
+                        <button class="primary-btn sm" style="width:auto; padding: 10px 30px;" onclick="document.querySelector('[data-target=map-screen]').click()">マップへ</button>
+                    </div>
+                </div>
+
+                <!-- 履歴用 -->
+                <div id="res-history-container" class="hidden" style="display:none;">
+                    <div id="history-list-container" class="reservation-grid"></div>
+                    <div id="no-history-msg" class="empty-state">
+                        <i class="fa-solid fa-clock-rotate-left fa-4x mb-4"></i>
+                        <h3>履歴がありません</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 地図画面 -->
+        <div id="map-screen" class="content-screen map-layout">
+            <div id="map"></div>
+
+            <button class="locate-btn" onclick="locateUser()" title="現在地を取得"><i class="fa-solid fa-location-crosshairs"></i></button>
+
+            <!-- 重なるフローティングパネル -->
+            <div id="detail-panel" class="floating-panel hidden">
+                <button id="close-panel" class="panel-close-btn" onclick="closePanel()"><i class="fa-solid fa-xmark"></i></button>
+                <div class="panel-header">
+                    <h2 id="lot-title">駐輪場名</h2>
+                    <span id="lot-status-badge" class="badge">空きあり</span>
+                </div>
+
+                <div class="panel-body">
+                    <div class="stat-row">
+                        <div class="stat">
+                            <span class="label">空き台数</span>
+                            <span class="val"><strong class="highlight" id="lot-available">10</strong> / <span id="lot-total">50</span></span>
+                        </div>
+                        <div class="stat">
+                            <span class="label">料金</span>
+                            <span class="val">¥<strong id="lot-price">100</strong>/h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-actions">
+                    <button id="nav-btn" class="secondary-btn"><i class="fa-solid fa-location-arrow"></i> ルート</button>
+                    <button id="reserve-trigger-btn" class="primary-btn"><i class="fa-regular fa-calendar-check"></i> 予約する</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 駐輪場を探す画面 -->
+        <div id="search-screen" class="content-screen">
+            <header class="content-header">
+                <h1>駐輪場を探す</h1>
+            </header>
+
+            <div class="search-controls" style="margin-bottom: 24px;">
+                <div class="search-bar" style="position:relative; margin-bottom: 20px;">
+                    <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:16px; top:16px; color:var(--text-secondary);"></i>
+                    <input type="text" id="search-input" placeholder="名前・住所で検索..." style="padding-left:48px;" oninput="applySearchFilters()">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="filter-tabs">
+                        <button class="filter-tab active" id="filter-all" onclick="setSearchFilter('all')">すべて</button>
+                        <button class="filter-tab" id="filter-free" onclick="setSearchFilter('free')">空車あり</button>
+                        <button class="filter-tab" id="filter-reserve" onclick="setSearchFilter('reserve')">予約可</button>
+                    </div>
+                    <div class="sort-dropdown">
+                        <select id="search-sort" onchange="applySearchFilters()" style="padding: 8px 16px; border-radius: 99px; background: white; border: 1px solid var(--border-color); font-size: 0.9rem; max-width: 150px;">
+                            <option value="distance">距離が近い順</option>
+                            <option value="free">空き枠が多い順</option>
+                            <option value="price_asc">料金が安い順</option>
+                            <option value="price_desc">料金が高い順</option>
+                            <option value="name">名前順 (A-Z)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card full-height-card" style="background:transparent; border:none; padding:0; box-shadow:none;">
+                <div id="search-list-container" class="search-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+                    <!-- JSで描画 -->
+                </div>
+                <div id="no-search-msg" class="empty-state" style="display:none;">
+                    <i class="fa-solid fa-magnifying-glass-location fa-4x mb-4"></i>
+                    <h3>見つかりませんでした</h3>
+                    <p>検索条件を変えてお試しください。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 設定画面 -->
+        <div id="profile-screen" class="content-screen">
+            <header class="content-header">
+                <h1>設定</h1>
+            </header>
+            <div class="card profile-card" style="max-width: 600px;">
+                <form class="settings-form">
+                    <div class="form-group">
+                        <label>表示名</label>
+                        <input type="text" id="profile-name-input" value="ゲスト">
+                    </div>
+                    <div class="form-group">
+                        <label>お気に入りエリア</label>
+                        <select>
+                            <option>なんば・心斎橋周辺</option>
+                            <option selected>大阪・梅田周辺</option>
+                            <option>天王寺・あべのエリア</option>
+                        </select>
+                    </div>
+                    <button type="button" class="primary-btn" onclick="saveProfile()" style="margin-top: 10px;">変更を保存</button>
+                </form>
+
+                <div style="margin-top: 40px; padding-top: 20px; border-top: 2px dashed #E2E8F0;">
+                    <h3 style="color:var(--status-full); font-size: 0.9rem; margin-bottom: 12px;"><i class="fa-solid fa-bug"></i> デバッグ・管理者設定</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px;">全ユーザーの予約を削除し、駐輪場の空き台数を最大値にリセットします。開発中の動作確認用です。</p>
+                    <button type="button" class="secondary-btn" onclick="resetSystemData()" style="color: var(--status-full); border-color: var(--status-full); background: #FFF5F5; font-size: 0.9rem; padding: 10px;">
+                        <i class="fa-solid fa-trash-can"></i> システムデータを初期化
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- 予約モーダル -->
+<div id="reservation-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>予約情報の入力</h2>
+            <button class="close-modal-btn" onclick="closeReservationModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <p id="modal-lot-name" style="font-weight: bold; margin-bottom: 20px; color: var(--primary-color);">駐輪場名</p>
+            <p style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-secondary);">
+                現在から指定した時間、この駐輪場の枠を確保（キープ）します。
+            </p>
+            <form id="reservation-form" onsubmit="submitReservation(event)">
+                <div class="form-group">
+                    <label>確保しておく時間</label>
+                    <select id="res-duration" required>
+                        <option value="30">30分</option>
+                        <option value="60" selected>1時間</option>
+                        <option value="120">2時間</option>
+                        <option value="180">3時間</option>
+                    </select>
+                </div>
+                <!-- 料金プレビューなどがあればここに出す -->
+                <div class="price-preview" style="background:#f3f4f6; padding:12px; border-radius:8px; margin-bottom:20px;">
+                    <p style="margin:0; font-size:0.9rem; color:#4b5563;">概算料金(1時間あたり¥<span id="modal-lot-price">0</span>): 決済は現地精算となります</p>
+                </div>
+
+                <div style="display:flex; gap:12px;">
+                    <button type="button" class="secondary-btn flex-1" onclick="closeReservationModal()">キャンセル</button>
+                    <button type="submit" class="primary-btn flex-1" id="res-submit-btn">予約を確定する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

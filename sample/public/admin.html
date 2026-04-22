@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartCycle Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <aside class="sidebar">
+      <h2>SmartCycle Admin</h2>
+      <nav>
+        <a href="#" class="active">ダッシュボード</a>
+        <a href="#">駐輪場管理</a>
+        <a href="#">統計レポート</a>
+        <a href="/">ユーザーマップ</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header>
+        <h1>管理画面</h1>
+        <div class="user-info">システム管理者</div>
+      </header>
+
+      <div class="kpi-cards">
+        <div class="card">
+          <h3>稼働率（全体）</h3>
+          <div class="value" id="kpi-occupancy">--%</div>
+        </div>
+        <div class="card">
+          <h3>満車状態の駐輪場</h3>
+          <div class="value" id="kpi-full">-- 箇所</div>
+        </div>
+        <div class="card">
+          <h3>アクティブデバイス</h3>
+          <div class="value" id="kpi-devices">100% (正常)</div>
+        </div>
+      </div>
+
+      <div class="charts-section">
+        <div class="chart-container card">
+          <h3>エリア別空き状況</h3>
+          <canvas id="occupancyChart"></canvas>
+        </div>
+      </div>
+
+      <div class="table-section card">
+        <h3>全駐輪場 リアルタイムステータス</h3>
+        <table id="status-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>名称</th>
+              <th>空き/全体</th>
+              <th>稼働率</th>
+              <th>ステータス</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- JSで動的生成 -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
