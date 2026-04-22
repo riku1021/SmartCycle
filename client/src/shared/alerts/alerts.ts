@@ -1,5 +1,29 @@
 import Swal, { type SweetAlertIcon, type SweetAlertResult } from "sweetalert2";
-import "./alerts.css";
+
+const commonOptions = {
+  didOpen: () => {
+    const container = Swal.getContainer();
+    if (container) {
+      container.style.zIndex = "3000";
+    }
+    const popup = Swal.getPopup();
+    if (popup) {
+      popup.style.borderRadius = "25px";
+      popup.style.padding = "10px";
+    }
+    const confirmButton = Swal.getConfirmButton();
+    if (confirmButton) {
+      confirmButton.style.borderRadius = "50px";
+      confirmButton.style.padding = "10px 20px";
+    }
+    const cancelButton = Swal.getCancelButton();
+    if (cancelButton) {
+      cancelButton.style.borderRadius = "50px";
+      cancelButton.style.padding = "10px 20px";
+    }
+  },
+  showCloseButton: true,
+};
 
 // 成功アラート
 export const showSuccessAlert = (title: string, text: string): Promise<SweetAlertResult> => {
@@ -10,10 +34,7 @@ export const showSuccessAlert = (title: string, text: string): Promise<SweetAler
     timer: 2000,
     showConfirmButton: false,
     timerProgressBar: true,
-    showCloseButton: true,
-    customClass: {
-      popup: "swal2-popup",
-    },
+    ...commonOptions,
   });
 };
 
@@ -26,10 +47,7 @@ export const showErrorAlert = (title: string, text: string): Promise<SweetAlertR
     timer: 3000,
     showConfirmButton: false,
     timerProgressBar: true,
-    showCloseButton: true,
-    customClass: {
-      popup: "swal2-popup",
-    },
+    ...commonOptions,
   });
 };
 
@@ -57,12 +75,7 @@ export const showInfoAlert = (
     confirmButtonColor: "#1976d2",
     confirmButtonText: "はい",
     cancelButtonText: "キャンセル",
-    showCloseButton: true,
-    customClass: {
-      popup: "swal2-popup",
-      confirmButton: "swal2-confirm",
-      cancelButton: "swal2-cancel",
-    },
+    ...commonOptions,
   });
 };
 
@@ -81,11 +94,6 @@ export const showConfirmationAlert = (
     showCancelButton: true,
     confirmButtonText,
     cancelButtonText,
-    showCloseButton: true,
-    customClass: {
-      popup: "swal2-popup",
-      confirmButton: "swal2-confirm",
-      cancelButton: "swal2-cancel",
-    },
+    ...commonOptions,
   });
 };

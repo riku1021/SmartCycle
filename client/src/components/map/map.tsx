@@ -1,4 +1,5 @@
 import "leaflet/dist/leaflet.css";
+import { Badge, Box, Button, Flex, Heading, IconButton, Text } from "@chakra-ui/react";
 import L, { type GeoJSON, type Map as LeafletMap } from "leaflet";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -100,10 +101,17 @@ const MapComponent: FC = () => {
     LOTS.forEach((lot) => {
       const status = getStatusClass(lot.available_spots, lot.total_spots);
       const title = status === "full" ? "満" : lot.available_spots;
+      const pinColor = status === "full" ? "#ef4444" : status === "few" ? "#f59e0b" : "#10b981";
       const icon = L.divIcon({
-        className: "custom-icon",
-        html: `<div class="custom-pin pin-${status}">
-          <span class="pin-bike">P</span>
+        className: "",
+        html: `<div style="
+          width:44px;height:44px;border-radius:50%;
+          border:3px solid #fff;
+          box-shadow:0 4px 10px rgba(0,0,0,0.3);
+          display:flex;flex-direction:column;justify-content:center;align-items:center;
+          color:#fff;font-weight:800;font-size:0.85rem;background:${pinColor};
+        ">
+          <span style="font-size:0.7rem;margin-bottom:2px;">P</span>
           <span>${title}</span>
         </div>`,
         iconSize: [44, 44],
@@ -229,73 +237,123 @@ const MapComponent: FC = () => {
     statusClass === "full" ? "満車" : statusClass === "few" ? "残りわずか" : "空きあり";
 
   return (
-    <AppLayout
-      hideHeader
-      mainClassName="map-main"
-      subtitle="地図から近くの駐輪場を探せます"
-      title="マップ検索"
-    >
-      <div className="map-layout">
-        <div id="map" ref={mapContainerRef} />
+    <AppLayout hideHeader isMapLayout subtitle="地図から近くの駐輪場を探せます" title="マップ検索">
+      <Box
+        h="100%"
+        minH={{ base: "calc(100vh - 74px)", md: "100vh" }}
+        overflow="hidden"
+        position="relative"
+      >
+        <Box id="map" inset={0} position="absolute" ref={mapContainerRef} />
 
-        <button
-          className="locate-btn"
+        <IconButton
+          aria-label="現在地を取得"
+          borderRadius="full"
+          bottom={{ base: "90px", md: "40px" }}
+          boxShadow="0 4px 10px rgba(0, 0, 0, 0.15)"
+          color="#4f46e5"
+          h="56px"
           disabled={isLocating}
           onClick={handleLocateUser}
-          title="現在地を取得"
-          type="button"
+          position="absolute"
+          right={{ base: "20px", md: "40px" }}
+          variant="solid"
+          w="56px"
+          zIndex={1000}
         >
-          {isLocating ? "..." : <FaLocationCrosshairs />}
-        </button>
+          {isLocating ? <Text fontSize="md">...</Text> : <FaLocationCrosshairs />}
+        </IconButton>
 
-        <div className={`floating-panel${panelOpen ? "" : " hidden"}`} id="detail-panel">
-          <button className="panel-close-btn" onClick={handleClosePanel} type="button">
+        <Box
+          bg="rgba(255, 255, 255, 0.95)"
+          border="1px solid rgba(255, 255, 255, 0.5)"
+          borderRadius="3xl"
+          boxShadow="panel"
+          left={{ base: 3, md: "auto" }}
+          opacity={panelOpen ? 1 : 0}
+          p={6}
+          pointerEvents={panelOpen ? "auto" : "none"}
+          position="absolute"
+          right={{ base: 3, md: "40px" }}
+          top={{ base: 3, md: "40px" }}
+          transform={panelOpen ? "translateX(0)" : "translateX(20px)"}
+          transition="all 0.3s"
+          w={{ base: "auto", md: "360px" }}
+          zIndex={1000}
+        >
+          <IconButton
+            aria-label="閉じる"
+            color="#64748b"
+            onClick={handleClosePanel}
+            position="absolute"
+            right={5}
+            top={5}
+            variant="ghost"
+          >
             <FaXmark />
-          </button>
+          </IconButton>
 
-          <div className="panel-header">
-            <h2 id="lot-title">{selectedLot?.name ?? "駐輪場名"}</h2>
-            <span className={`badge ${statusClass}`} id="lot-status-badge">
+          <Box mb={6} pr={8}>
+            <Heading as="h2" fontSize="1.4rem" mb={3}>
+              {selectedLot?.name ?? "駐輪場名"}
+            </Heading>
+            <Badge
+              bg={
+                statusClass === "full" ? "#ef4444" : statusClass === "few" ? "#f59e0b" : "#10b981"
+              }
+              borderRadius="full"
+              color="white"
+              px={3}
+              py={1.5}
+            >
               {statusLabel}
-            </span>
-          </div>
+            </Badge>
+          </Box>
 
-          <div className="panel-body">
-            <div className="stat-row">
-              <div className="stat">
-                <span className="label">空き台数</span>
-                <span className="val">
-                  <strong className="highlight" id="lot-available">
-                    {selectedLot?.available_spots ?? 0}
-                  </strong>{" "}
-                  / <span id="lot-total">{selectedLot?.total_spots ?? 0}</span>
-                </span>
-              </div>
-              <div className="stat">
-                <span className="label">料金</span>
-                <span className="val">
-                  ¥<strong id="lot-price">{selectedLot?.price_per_hour ?? 0}</strong>/h
-                </span>
-              </div>
-            </div>
-            <p className="map-message">{mapMessage}</p>
-          </div>
+          <Flex gap={4} mb={5}>
+            <Box bg="#f1f5f9" borderRadius="xl" flex={1} p={4}>
+              <Text color="#64748b" fontSize="0.8rem" fontWeight={600}>
+                空き台数
+              </Text>
+              <Text color="#0f172a" fontSize="1rem" fontWeight={700}>
+                <Text as="strong" color="#4f46e5" fontSize="1.5rem" fontWeight={800}>
+                  {selectedLot?.available_spots ?? 0}
+                </Text>{" "}
+                / {selectedLot?.total_spots ?? 0}
+              </Text>
+            </Box>
+            <Box bg="#f1f5f9" borderRadius="xl" flex={1} p={4}>
+              <Text color="#64748b" fontSize="0.8rem" fontWeight={600}>
+                料金
+              </Text>
+              <Text color="#0f172a" fontSize="1rem" fontWeight={700}>
+                ¥<Text as="strong">{selectedLot?.price_per_hour ?? 0}</Text>/h
+              </Text>
+            </Box>
+          </Flex>
+          <Text color="#64748b" fontSize="0.9rem" mb={5}>
+            {mapMessage}
+          </Text>
 
-          <div className="panel-actions">
-            <button
-              className="secondary-btn"
+          <Flex gap={3}>
+            <Button
+              colorScheme="gray"
+              flex={1}
               disabled={isRouting}
               onClick={handleRoute}
-              type="button"
+              variant="outline"
             >
-              <FaLocationArrow /> ルート
-            </button>
-            <button className="primary-btn" disabled type="button">
+              <Flex align="center" gap={2}>
+                <FaLocationArrow />
+                ルート
+              </Flex>
+            </Button>
+            <Button colorScheme="purple" disabled flex={1}>
               予約する
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </Flex>
+        </Box>
+      </Box>
     </AppLayout>
   );
 };

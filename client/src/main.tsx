@@ -1,10 +1,12 @@
 import "@/config/env";
+import { ChakraProvider } from "@chakra-ui/react";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { QueryClientAtomProvider } from "jotai-tanstack-query/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createQueryClient } from "@/queries/queryClient";
 import { routeTree } from "@/routeTree.gen";
+import theme from "@/theme";
 
 const router = createRouter<typeof routeTree>({ routeTree });
 const queryClient = createQueryClient();
@@ -20,8 +22,10 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <QueryClientAtomProvider client={queryClient}>
-      <App />
-    </QueryClientAtomProvider>
+    <ChakraProvider value={theme}>
+      <QueryClientAtomProvider client={queryClient}>
+        <App />
+      </QueryClientAtomProvider>
+    </ChakraProvider>
   </StrictMode>
 );

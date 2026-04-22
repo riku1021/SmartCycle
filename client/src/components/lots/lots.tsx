@@ -1,3 +1,4 @@
+import { Box, Button, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import type { FC } from "react";
 import AppLayout from "@/components/app-layout/app-layout";
 
@@ -10,29 +11,31 @@ const mockLots = [
 const LotsComponent: FC = () => {
   return (
     <AppLayout title="駐輪場一覧" subtitle="条件でフィルタしながら駐輪場を探せます">
-      <section className="page-card">
-        <div className="tab-row">
-          <button className="tab-btn active" type="button">
+      <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" p={6}>
+        <HStack gap={2.5} mb={4}>
+          <Button bg="#4f46e5" borderRadius="full" color="white" type="button">
             すべて
-          </button>
-          <button className="tab-btn" type="button">
+          </Button>
+          <Button bg="#eef2ff" borderRadius="full" color="#4f46e5" type="button">
             空きあり
-          </button>
-          <button className="tab-btn" type="button">
+          </Button>
+          <Button bg="#eef2ff" borderRadius="full" color="#4f46e5" type="button">
             屋根あり
-          </button>
-        </div>
-        <div className="list-grid">
+          </Button>
+        </HStack>
+        <SimpleGrid columns={{ base: 1, lg: 2 }} gap={3.5}>
           {mockLots.map((lot) => (
-            <article className="list-item" key={lot.id}>
-              <h3>{lot.name}</h3>
-              <p style={{ color: "var(--text-secondary)", marginTop: "8px" }}>
+            <Box border="1px solid" borderColor="#e2e8f0" borderRadius="lg" key={lot.id} p={3.5}>
+              <Heading as="h3" fontSize="md">
+                {lot.name}
+              </Heading>
+              <Text color="#64748b" mt={2}>
                 状態: {lot.status} / {lot.walk}
-              </p>
-            </article>
+              </Text>
+            </Box>
           ))}
-        </div>
-      </section>
+        </SimpleGrid>
+      </Box>
     </AppLayout>
   );
 };

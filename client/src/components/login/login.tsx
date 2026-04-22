@@ -1,4 +1,14 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  Box,
+  Button,
+  Link as ChakraLink,
+  Flex,
+  Heading,
+  HStack,
+  Input,
+  Text,
+} from "@chakra-ui/react";
+import { useNavigate } from "@tanstack/react-router";
 import type { FC, FormEvent } from "react";
 import { useState } from "react";
 import { FaBicycle, FaEnvelope, FaLock, FaUser } from "react-icons/fa6";
@@ -9,7 +19,6 @@ import {
   isEmailNotRegisteredError,
   submitAuth,
 } from "./login.auth";
-import "./login.css";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -74,79 +83,146 @@ const LoginComponent: FC = () => {
   };
 
   return (
-    <div className="auth-page screen full-screen active">
-      <div className="auth-container">
-        <div className="auth-side-brand">
-          <div className="brand-logo-large" aria-hidden>
+    <Flex
+      align="center"
+      bgGradient="linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #c026d3 100%)"
+      direction="column"
+      inset={0}
+      justify="center"
+      position="fixed"
+      px={3}
+      py={6}
+      zIndex={2000}
+    >
+      <Flex
+        backdropFilter="blur(25px)"
+        bg="rgba(255, 255, 255, 0.15)"
+        border="1px solid rgba(255, 255, 255, 0.3)"
+        borderRadius={{ base: "24px", md: "40px" }}
+        boxShadow="0 40px 100px -20px rgba(0,0,0,0.4)"
+        h={{ base: "auto", md: "min(680px, 92vh)" }}
+        maxH={{ base: "92vh", md: "none" }}
+        maxW="1000px"
+        overflow="hidden"
+        w="90vw"
+      >
+        <Flex
+          align="center"
+          bg="rgba(0, 0, 0, 0.1)"
+          color="white"
+          direction="column"
+          display={{ base: "none", lg: "flex" }}
+          flex="1.2"
+          justify="center"
+          p={16}
+          textAlign="center"
+        >
+          <Box aria-hidden display="flex" fontSize="6rem" justifyContent="center" mb={6}>
             <FaBicycle />
-          </div>
-          <h1>SmartCycle</h1>
-          <p className="brand-tagline">未来の駐輪体験を、今ここに。</p>
-        </div>
+          </Box>
+          <Heading fontSize="3rem" fontWeight={800} mb={2}>
+            SmartCycle
+          </Heading>
+          <Text fontSize="1.2rem" opacity={0.9}>
+            未来の駐輪体験を、今ここに。
+          </Text>
+        </Flex>
 
-        <div className="auth-side-form">
-          <div className="auth-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "login"}
-              className={`auth-tab${mode === "login" ? " active" : ""}`}
-              onClick={() => {
-                setMode("login");
-              }}
+        <Flex
+          bg="white"
+          direction="column"
+          flex={1}
+          justify="center"
+          overflowY="auto"
+          p={{ base: 5, md: 10 }}
+        >
+          <HStack borderBottom="2px solid #f1f5f9" gap={6} mb={6}>
+            <Button
+              borderBottom={mode === "login" ? "2px solid #4f46e5" : "2px solid transparent"}
+              borderRadius={0}
+              color={mode === "login" ? "#4f46e5" : "#64748b"}
+              fontWeight={700}
+              onClick={() => setMode("login")}
+              px={0}
+              variant="ghost"
             >
               ログイン
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "signup"}
-              className={`auth-tab${mode === "signup" ? " active" : ""}`}
-              onClick={() => {
-                setMode("signup");
-              }}
+            </Button>
+            <Button
+              borderBottom={mode === "signup" ? "2px solid #4f46e5" : "2px solid transparent"}
+              borderRadius={0}
+              color={mode === "signup" ? "#4f46e5" : "#64748b"}
+              fontWeight={700}
+              onClick={() => setMode("signup")}
+              px={0}
+              variant="ghost"
             >
               新規登録
-            </button>
-          </div>
+            </Button>
+          </HStack>
 
-          <div className="auth-box">
+          <Box>
             {mode === "login" ? (
-              <div id="auth-login-text">
-                <h1>おかえりなさい</h1>
-                <p>アカウント情報を入力してログインしてください。</p>
-              </div>
+              <Box>
+                <Heading fontSize={{ base: "1.75rem", md: "2.4rem" }} mb={3}>
+                  おかえりなさい
+                </Heading>
+                <Text color="#64748b" mb={8}>
+                  アカウント情報を入力してログインしてください。
+                </Text>
+              </Box>
             ) : (
-              <div id="auth-signup-text">
-                <h1>はじめまして</h1>
-                <p>わずか数秒で、次世代の駐輪ライフが始まります。</p>
-              </div>
+              <Box>
+                <Heading fontSize={{ base: "1.75rem", md: "2.4rem" }} mb={3}>
+                  はじめまして
+                </Heading>
+                <Text color="#64748b" mb={8}>
+                  わずか数秒で、次世代の駐輪ライフが始まります。
+                </Text>
+              </Box>
             )}
 
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <form noValidate onSubmit={handleSubmit}>
               {mode === "signup" && (
-                <div className="form-group">
-                  <label htmlFor="auth-name">
+                <Box mb={5}>
+                  <Text
+                    alignItems="center"
+                    color="#64748b"
+                    display="flex"
+                    fontWeight={600}
+                    gap={1.5}
+                    mb={2}
+                  >
                     <FaUser aria-hidden />
                     表示名（任意）
-                  </label>
-                  <input
+                  </Text>
+                  <Input
+                    _focusVisible={{ borderColor: "#4f46e5", bg: "white" }}
+                    bg="#f8fafc"
                     id="auth-name"
-                    type="text"
                     autoComplete="name"
                     placeholder="やまだ たろう"
                     value={name}
                     onChange={(ev) => setName(ev.target.value)}
                   />
-                </div>
+                </Box>
               )}
 
-              <div className="form-group">
-                <label htmlFor="auth-email">
+              <Box mb={5}>
+                <Text
+                  alignItems="center"
+                  color="#64748b"
+                  display="flex"
+                  fontWeight={600}
+                  gap={1.5}
+                  mb={2}
+                >
                   <FaEnvelope aria-hidden />
                   メールアドレス
-                </label>
-                <input
+                </Text>
+                <Input
+                  _focusVisible={{ borderColor: "#4f46e5", bg: "white" }}
+                  bg="#f8fafc"
                   id="auth-email"
                   type="email"
                   autoComplete="email"
@@ -155,15 +231,26 @@ const LoginComponent: FC = () => {
                   value={email}
                   onChange={(ev) => setEmail(ev.target.value)}
                 />
-                <p className="input-hint">有効なメールアドレス形式で入力してください。</p>
-              </div>
+                <Text color="#64748b" fontSize="0.8rem" mt={2}>
+                  有効なメールアドレス形式で入力してください。
+                </Text>
+              </Box>
 
-              <div className="form-group">
-                <label htmlFor="auth-password">
+              <Box mb={5}>
+                <Text
+                  alignItems="center"
+                  color="#64748b"
+                  display="flex"
+                  fontWeight={600}
+                  gap={1.5}
+                  mb={2}
+                >
                   <FaLock aria-hidden />
                   パスワード
-                </label>
-                <input
+                </Text>
+                <Input
+                  _focusVisible={{ borderColor: "#4f46e5", bg: "white" }}
+                  bg="#f8fafc"
                   id="auth-password"
                   type="password"
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
@@ -173,37 +260,59 @@ const LoginComponent: FC = () => {
                   value={password}
                   onChange={(ev) => setPassword(ev.target.value)}
                 />
-                <p className="input-hint">
+                <Text color="#64748b" fontSize="0.8rem" mt={2}>
                   {mode === "signup"
                     ? "6〜256文字で入力してください。英字・数字・記号の組み合わせを推奨します。"
                     : "1〜256文字で入力してください。"}
-                </p>
-              </div>
+                </Text>
+              </Box>
 
-              <button type="submit" className="primary-btn auth-submit" disabled={isSubmitting}>
+              <Button
+                bg="#4f46e5"
+                color="white"
+                disabled={isSubmitting}
+                mt={2}
+                size="lg"
+                type="submit"
+                w="full"
+              >
                 {isSubmitting
                   ? "処理中…"
                   : mode === "login"
                     ? "ログインしてはじめる"
                     : "新規登録してはじめる"}
-              </button>
+              </Button>
 
               {mode === "signup" && (
-                <div className="auth-signup-extra" id="auth-signup-extra">
+                <Text color="#64748b" fontSize="0.85rem" mt={5} textAlign="center">
                   登録することで、
-                  <a href="#terms">利用規約</a>と<a href="#privacy">プライバシーポリシー</a>
+                  <ChakraLink color="#4f46e5" fontWeight={600} href="#terms">
+                    利用規約
+                  </ChakraLink>
+                  と
+                  <ChakraLink color="#4f46e5" fontWeight={600} href="#privacy">
+                    プライバシーポリシー
+                  </ChakraLink>
                   に同意したことになります。
-                </div>
+                </Text>
               )}
             </form>
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Flex>
+      </Flex>
 
-      <p className="auth-bottom">
-        <Link to="/">トップへ</Link>
-      </p>
-    </div>
+      <HStack mt={6}>
+        <Button
+          color="rgba(255,255,255,0.9)"
+          fontWeight={600}
+          onClick={() => void navigate({ to: "/" })}
+          textDecoration="underline"
+          variant="plain"
+        >
+          トップへ
+        </Button>
+      </HStack>
+    </Flex>
   );
 };
 
