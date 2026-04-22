@@ -5,13 +5,14 @@ import {
   Flex,
   Heading,
   HStack,
+  Image,
   Input,
   Text,
 } from "@chakra-ui/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC, FormEvent } from "react";
 import { useState } from "react";
-import { FaBicycle, FaEnvelope, FaLock, FaUser } from "react-icons/fa6";
+import { FaEnvelope, FaLock, FaUser } from "react-icons/fa6";
 import { showErrorAlert } from "@/shared/alerts/alerts";
 import {
   getAuthErrorMessage,
@@ -117,9 +118,7 @@ const LoginComponent: FC = () => {
           p={16}
           textAlign="center"
         >
-          <Box aria-hidden display="flex" fontSize="6rem" justifyContent="center" mb={6}>
-            <FaBicycle />
-          </Box>
+          <Image alt="SmartCycle" aria-hidden boxSize="132px" mb={6} src="/SmartCycle.svg" />
           <Heading fontSize="3rem" fontWeight={800} mb={2}>
             SmartCycle
           </Heading>

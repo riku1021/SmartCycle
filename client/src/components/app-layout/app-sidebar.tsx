@@ -1,7 +1,7 @@
-import { Box, Button, Text } from "@chakra-ui/react";
+import { Box, Button, Image, Text } from "@chakra-ui/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
-import { FaBicycle, FaGear, FaList, FaMapLocationDot } from "react-icons/fa6";
+import { FaGear, FaList, FaMapLocationDot } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
 import { clearAccessToken } from "@/lib/apiClient";
 import { showConfirmationAlert } from "@/shared/alerts/alerts";
@@ -52,7 +52,7 @@ const AppSidebar: FC<AppSidebarProps> = ({ isActivePath }) => {
         px={4}
         py={2}
       >
-        <FaBicycle size={28} />
+        <Image alt="SmartCycle" boxSize="48px" src="/SmartCycle.svg" />
         <Text as="h2" fontSize="1.5rem" fontWeight={800}>
           SmartCycle
         </Text>
