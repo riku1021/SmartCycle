@@ -34,6 +34,8 @@ const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
       zIndex={2000}
     >
       <Button
+        _active={{ bg: "transparent" }}
+        _hover={{ bg: "transparent" }}
         alignItems="center"
         bg="transparent"
         color={isActivePath("/dashboard") ? "#4f46e5" : "#64748b"}
@@ -42,16 +44,24 @@ const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
         fontSize="0.65rem"
         fontWeight={700}
         gap={1}
+        h="full"
         justifyContent="center"
+        minH="unset"
+        minW="unset"
         onClick={() => void handleMove("/dashboard")}
         px={0.5}
         py={1.5}
+        rounded="none"
         variant="ghost"
       >
-        <MdDashboard />
+        <Box as="span" fontSize="1.3rem" lineHeight={1}>
+          <MdDashboard />
+        </Box>
         <Text as="span">管理画面</Text>
       </Button>
       <Button
+        _active={{ bg: "transparent" }}
+        _hover={{ bg: "transparent" }}
         alignItems="center"
         bg="transparent"
         color={isActivePath("/lots") ? "#4f46e5" : "#64748b"}
@@ -60,16 +70,24 @@ const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
         fontSize="0.65rem"
         fontWeight={700}
         gap={1}
+        h="full"
         justifyContent="center"
+        minH="unset"
+        minW="unset"
         onClick={() => void handleMove("/lots")}
         px={0.5}
         py={1.5}
+        rounded="none"
         variant="ghost"
       >
-        <FaList />
+        <Box as="span" fontSize="1.3rem" lineHeight={1}>
+          <FaList />
+        </Box>
         <Text as="span">駐輪場一覧</Text>
       </Button>
       <Button
+        _active={{ bg: "transparent" }}
+        _hover={{ bg: "transparent" }}
         alignItems="center"
         bg="transparent"
         color={isActivePath("/map") ? "#4f46e5" : "#64748b"}
@@ -78,16 +96,24 @@ const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
         fontSize="0.65rem"
         fontWeight={700}
         gap={1}
+        h="full"
         justifyContent="center"
+        minH="unset"
+        minW="unset"
         onClick={() => void handleMove("/map")}
         px={0.5}
         py={1.5}
+        rounded="none"
         variant="ghost"
       >
-        <FaMapLocationDot />
+        <Box as="span" fontSize="1.3rem" lineHeight={1}>
+          <FaMapLocationDot />
+        </Box>
         <Text as="span">マップ検索</Text>
       </Button>
       <Button
+        _active={{ bg: "transparent" }}
+        _hover={{ bg: "transparent" }}
         alignItems="center"
         bg="transparent"
         color={isActivePath("/reservations") ? "#4f46e5" : "#64748b"}
@@ -96,16 +122,24 @@ const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
         fontSize="0.65rem"
         fontWeight={700}
         gap={1}
+        h="full"
         justifyContent="center"
+        minH="unset"
+        minW="unset"
         onClick={() => void handleMove("/reservations")}
         px={0.5}
         py={1.5}
+        rounded="none"
         variant="ghost"
       >
-        <FaList />
+        <Box as="span" fontSize="1.3rem" lineHeight={1}>
+          <FaList />
+        </Box>
         <Text as="span">予約管理</Text>
       </Button>
       <Button
+        _active={{ bg: "transparent" }}
+        _hover={{ bg: "transparent" }}
         alignItems="center"
         bg="transparent"
         color={isActivePath("/settings") ? "#4f46e5" : "#64748b"}
@@ -114,13 +148,19 @@ const AppFooterNav: FC<AppFooterNavProps> = ({ isActivePath }) => {
         fontSize="0.65rem"
         fontWeight={700}
         gap={1}
+        h="full"
         justifyContent="center"
+        minH="unset"
+        minW="unset"
         onClick={() => void handleMove("/settings")}
         px={0.5}
         py={1.5}
+        rounded="none"
         variant="ghost"
       >
-        <FaGear />
+        <Box as="span" fontSize="1.3rem" lineHeight={1}>
+          <FaGear />
+        </Box>
         <Text as="span">設定</Text>
       </Button>
     </Box>
