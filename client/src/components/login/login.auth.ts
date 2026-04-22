@@ -1,5 +1,6 @@
 import axios from "axios";
 import { login, signup } from "@/api/auth";
+import { resolveRoleByCredential, setUserRole, type UserRole } from "@/lib/adminRole";
 import { setAccessToken } from "@/lib/apiClient";
 
 export type AuthSubmitMode = "login" | "signup";
@@ -13,11 +14,13 @@ export async function submitAuth(params: {
   email: string;
   password: string;
   name?: string;
-}): Promise<void> {
+}): Promise<UserRole> {
   if (params.mode === "login") {
     const data = await login({ email: params.email, password: params.password });
     setAccessToken(data.access_token);
-    return;
+    const role = resolveRoleByCredential(params.email, params.password);
+    setUserRole(role);
+    return role;
   }
   const data = await signup({
     email: params.email,
@@ -25,6 +28,8 @@ export async function submitAuth(params: {
     name: params.name,
   });
   setAccessToken(data.access_token);
+  setUserRole("user");
+  return "user";
 }
 
 const DEFAULT_ERROR_MESSAGE = "ログインに失敗しました。入力内容を確認してください。";

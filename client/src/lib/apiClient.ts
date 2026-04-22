@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL } from "@/config/env";
+import { clearUserRole } from "@/lib/adminRole";
 
 export const AUTH_ACCESS_TOKEN_STORAGE_KEY = "smartcycle_access_token" as const;
 
@@ -25,6 +26,7 @@ export function setAccessToken(token: string): void {
 
 export function clearAccessToken(): void {
   localStorage.removeItem(AUTH_ACCESS_TOKEN_STORAGE_KEY);
+  clearUserRole();
 }
 
 apiClient.interceptors.request.use((config) => {

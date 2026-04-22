@@ -53,13 +53,17 @@ const LoginComponent: FC = () => {
     }
     setIsSubmitting(true);
     try {
-      await submitAuth({
+      const role = await submitAuth({
         mode,
         email,
         password,
         name: name || undefined,
       });
-      await navigate({ to: "/" });
+      if (role === "admin") {
+        await navigate({ to: "/dashboard" });
+      } else {
+        await navigate({ to: "/" });
+      }
     } catch (err: unknown) {
       if (mode === "login" && isEmailNotRegisteredError(err)) {
         await showErrorAlert(

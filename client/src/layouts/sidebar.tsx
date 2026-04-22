@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
 import { FaCamera, FaGear, FaList, FaMapLocationDot } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
+import { getUserRole } from "@/lib/adminRole";
 import { clearAccessToken } from "@/lib/apiClient";
 import { showConfirmationAlert } from "@/shared/alerts/alerts";
 
@@ -12,6 +13,12 @@ type SidebarProps = {
 
 const Sidebar: FC<SidebarProps> = ({ isActivePath }) => {
   const navigate = useNavigate();
+  const role = getUserRole();
+  const isAdmin = role === "admin";
+  const isDev = role === "dev";
+  const canViewDashboard = isAdmin || isDev;
+  const canViewCamera = isDev;
+  const canViewGeneralUserPages = !isAdmin;
   const handleMove = async (
     to: "/dashboard" | "/map" | "/lots" | "/reservations" | "/camera" | "/settings"
   ) => {
@@ -58,98 +65,110 @@ const Sidebar: FC<SidebarProps> = ({ isActivePath }) => {
         </Text>
       </Box>
       <Box as="nav" display="flex" flexDirection="column" gap={2} p={3}>
-        <Button
-          alignItems="center"
-          bg={isActivePath("/dashboard") ? "#4f46e5" : "transparent"}
-          borderRadius="12px"
-          boxShadow={isActivePath("/dashboard") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-          color={isActivePath("/dashboard") ? "#ffffff" : "#64748b"}
-          display="flex"
-          fontWeight={600}
-          gap={2.5}
-          justifyContent="flex-start"
-          onClick={() => void handleMove("/dashboard")}
-          px={4}
-          py={3}
-          variant="ghost"
-        >
-          <MdDashboard />
-          管理画面
-        </Button>
-        <Button
-          alignItems="center"
-          bg={isActivePath("/map") ? "#4f46e5" : "transparent"}
-          borderRadius="12px"
-          boxShadow={isActivePath("/map") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-          color={isActivePath("/map") ? "#ffffff" : "#64748b"}
-          display="flex"
-          fontWeight={600}
-          gap={2.5}
-          justifyContent="flex-start"
-          onClick={() => void handleMove("/map")}
-          px={4}
-          py={3}
-          variant="ghost"
-        >
-          <FaMapLocationDot />
-          マップ検索
-        </Button>
-        <Button
-          alignItems="center"
-          bg={isActivePath("/lots") ? "#4f46e5" : "transparent"}
-          borderRadius="12px"
-          boxShadow={isActivePath("/lots") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-          color={isActivePath("/lots") ? "#ffffff" : "#64748b"}
-          display="flex"
-          fontWeight={600}
-          gap={2.5}
-          justifyContent="flex-start"
-          onClick={() => void handleMove("/lots")}
-          px={4}
-          py={3}
-          variant="ghost"
-        >
-          <FaList />
-          駐輪場一覧
-        </Button>
-        <Button
-          alignItems="center"
-          bg={isActivePath("/reservations") ? "#4f46e5" : "transparent"}
-          borderRadius="12px"
-          boxShadow={
-            isActivePath("/reservations") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
-          }
-          color={isActivePath("/reservations") ? "#ffffff" : "#64748b"}
-          display="flex"
-          fontWeight={600}
-          gap={2.5}
-          justifyContent="flex-start"
-          onClick={() => void handleMove("/reservations")}
-          px={4}
-          py={3}
-          variant="ghost"
-        >
-          <FaList />
-          予約管理
-        </Button>
-        <Button
-          alignItems="center"
-          bg={isActivePath("/camera") ? "#4f46e5" : "transparent"}
-          borderRadius="12px"
-          boxShadow={isActivePath("/camera") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-          color={isActivePath("/camera") ? "#ffffff" : "#64748b"}
-          display="flex"
-          fontWeight={600}
-          gap={2.5}
-          justifyContent="flex-start"
-          onClick={() => void handleMove("/camera")}
-          px={4}
-          py={3}
-          variant="ghost"
-        >
-          <FaCamera />
-          カメラ画像
-        </Button>
+        {canViewDashboard ? (
+          <Button
+            alignItems="center"
+            bg={isActivePath("/dashboard") ? "#4f46e5" : "transparent"}
+            borderRadius="12px"
+            boxShadow={
+              isActivePath("/dashboard") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
+            }
+            color={isActivePath("/dashboard") ? "#ffffff" : "#64748b"}
+            display="flex"
+            fontWeight={600}
+            gap={2.5}
+            justifyContent="flex-start"
+            onClick={() => void handleMove("/dashboard")}
+            px={4}
+            py={3}
+            variant="ghost"
+          >
+            <MdDashboard />
+            管理画面
+          </Button>
+        ) : null}
+        {canViewGeneralUserPages ? (
+          <Button
+            alignItems="center"
+            bg={isActivePath("/map") ? "#4f46e5" : "transparent"}
+            borderRadius="12px"
+            boxShadow={isActivePath("/map") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
+            color={isActivePath("/map") ? "#ffffff" : "#64748b"}
+            display="flex"
+            fontWeight={600}
+            gap={2.5}
+            justifyContent="flex-start"
+            onClick={() => void handleMove("/map")}
+            px={4}
+            py={3}
+            variant="ghost"
+          >
+            <FaMapLocationDot />
+            マップ検索
+          </Button>
+        ) : null}
+        {canViewGeneralUserPages ? (
+          <Button
+            alignItems="center"
+            bg={isActivePath("/lots") ? "#4f46e5" : "transparent"}
+            borderRadius="12px"
+            boxShadow={isActivePath("/lots") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
+            color={isActivePath("/lots") ? "#ffffff" : "#64748b"}
+            display="flex"
+            fontWeight={600}
+            gap={2.5}
+            justifyContent="flex-start"
+            onClick={() => void handleMove("/lots")}
+            px={4}
+            py={3}
+            variant="ghost"
+          >
+            <FaList />
+            駐輪場一覧
+          </Button>
+        ) : null}
+        {canViewGeneralUserPages ? (
+          <Button
+            alignItems="center"
+            bg={isActivePath("/reservations") ? "#4f46e5" : "transparent"}
+            borderRadius="12px"
+            boxShadow={
+              isActivePath("/reservations") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
+            }
+            color={isActivePath("/reservations") ? "#ffffff" : "#64748b"}
+            display="flex"
+            fontWeight={600}
+            gap={2.5}
+            justifyContent="flex-start"
+            onClick={() => void handleMove("/reservations")}
+            px={4}
+            py={3}
+            variant="ghost"
+          >
+            <FaList />
+            予約管理
+          </Button>
+        ) : null}
+        {canViewCamera ? (
+          <Button
+            alignItems="center"
+            bg={isActivePath("/camera") ? "#4f46e5" : "transparent"}
+            borderRadius="12px"
+            boxShadow={isActivePath("/camera") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
+            color={isActivePath("/camera") ? "#ffffff" : "#64748b"}
+            display="flex"
+            fontWeight={600}
+            gap={2.5}
+            justifyContent="flex-start"
+            onClick={() => void handleMove("/camera")}
+            px={4}
+            py={3}
+            variant="ghost"
+          >
+            <FaCamera />
+            カメラ画像
+          </Button>
+        ) : null}
         <Button
           alignItems="center"
           bg={isActivePath("/settings") ? "#4f46e5" : "transparent"}
@@ -166,7 +185,7 @@ const Sidebar: FC<SidebarProps> = ({ isActivePath }) => {
           variant="ghost"
         >
           <FaGear />
-          設定
+          {isAdmin ? "アカウント管理" : "設定"}
         </Button>
       </Box>
       <Button
