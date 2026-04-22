@@ -1,7 +1,7 @@
 import { Box, Button, Image, Text } from "@chakra-ui/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
-import { FaGear, FaList, FaMapLocationDot } from "react-icons/fa6";
+import { FaCamera, FaGear, FaList, FaMapLocationDot } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
 import { clearAccessToken } from "@/lib/apiClient";
 import { showConfirmationAlert } from "@/shared/alerts/alerts";
@@ -13,7 +13,7 @@ type AppSidebarProps = {
 const AppSidebar: FC<AppSidebarProps> = ({ isActivePath }) => {
   const navigate = useNavigate();
   const handleMove = async (
-    to: "/dashboard" | "/map" | "/lots" | "/reservations" | "/settings"
+    to: "/dashboard" | "/map" | "/lots" | "/reservations" | "/camera" | "/settings"
   ) => {
     await navigate({ to });
   };
@@ -131,6 +131,24 @@ const AppSidebar: FC<AppSidebarProps> = ({ isActivePath }) => {
         >
           <FaList />
           予約管理
+        </Button>
+        <Button
+          alignItems="center"
+          bg={isActivePath("/camera") ? "#4f46e5" : "transparent"}
+          borderRadius="12px"
+          boxShadow={isActivePath("/camera") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
+          color={isActivePath("/camera") ? "#ffffff" : "#64748b"}
+          display="flex"
+          fontWeight={600}
+          gap={2.5}
+          justifyContent="flex-start"
+          onClick={() => void handleMove("/camera")}
+          px={4}
+          py={3}
+          variant="ghost"
+        >
+          <FaCamera />
+          カメラ画像
         </Button>
         <Button
           alignItems="center"

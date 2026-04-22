@@ -17,6 +17,7 @@ import { Route as LotsIndexRouteImport } from './routes/lots/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as ExampleIndexRouteImport } from './routes/example/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as CameraIndexRouteImport } from './routes/camera/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,9 +59,15 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CameraIndexRoute = CameraIndexRouteImport.update({
+  id: '/camera/',
+  path: '/camera/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/camera/': typeof CameraIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/example/': typeof ExampleIndexRoute
   '/login/': typeof LoginIndexRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/camera': typeof CameraIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/example': typeof ExampleIndexRoute
   '/login': typeof LoginIndexRoute
@@ -82,6 +90,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/camera/': typeof CameraIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/example/': typeof ExampleIndexRoute
   '/login/': typeof LoginIndexRoute
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/camera/'
     | '/dashboard/'
     | '/example/'
     | '/login/'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/camera'
     | '/dashboard'
     | '/example'
     | '/login'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/camera/'
     | '/dashboard/'
     | '/example/'
     | '/login/'
@@ -125,6 +137,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CameraIndexRoute: typeof CameraIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   ExampleIndexRoute: typeof ExampleIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
@@ -192,11 +205,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/camera/': {
+      id: '/camera/'
+      path: '/camera'
+      fullPath: '/camera/'
+      preLoaderRoute: typeof CameraIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CameraIndexRoute: CameraIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   ExampleIndexRoute: ExampleIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
