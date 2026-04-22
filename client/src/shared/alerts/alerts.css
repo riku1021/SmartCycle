@@ -1,0 +1,14 @@
+.swal2-container.swal2-backdrop-show {
+  z-index: 3000;
+}
+
+.swal2-popup {
+  border-radius: 25px;
+  padding: 10px;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+  border-radius: 50px;
+  padding: 10px 20px;
+}

@@ -7,11 +7,20 @@ from src.infrastructure.config.deps import get_settings
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.models.user import User
 from src.infrastructure.db.session import get_db
+from src.infrastructure.logger.logger import logger
 
 from .dependencies import get_current_user
 from .service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _mask_email_for_log(email: str) -> str:
+    local, _, domain = email.partition("@")
+    if not local or not domain:
+        return "***"
+    masked_local = f"{local[0]}*" if len(local) <= 2 else f"{local[:2]}***"
+    return f"{masked_local}@{domain}"
 
 
 class SignupBody(BaseModel):
@@ -72,14 +81,26 @@ async def login(
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
+    email = str(body.email)
+    masked_email = _mask_email_for_log(email)
+    logger.info(f"ログイン試行: email={masked_email}")
     auth = AuthService(session, settings)
-    user = await auth.authenticate(str(body.email), body.password)
+    existing_user = await auth.get_user_by_email(email)
+    if existing_user is None:
+        logger.warning(f"ログイン失敗(未登録): email={masked_email}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email not registered",
+        )
+    user = await auth.authenticate(email, body.password)
     if user is None:
+        logger.warning(f"ログイン失敗(パスワード不一致): email={masked_email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
     token = auth.create_access_token(user.id)
+    logger.info(f"ログイン成功: user_id={user.id}, email={masked_email}")
     return TokenResponse(
         access_token=token,
         user=UserOut.model_validate(user),

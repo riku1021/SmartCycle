@@ -5,7 +5,7 @@ import { getAccessToken } from "@/lib/apiClient";
 export const Route = createFileRoute("/login/")({
   beforeLoad: () => {
     if (getAccessToken()) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/map" });
     }
   },
   component: LoginComponent,

@@ -2,8 +2,29 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import type { FC, FormEvent } from "react";
 import { useState } from "react";
 import { FaBicycle, FaEnvelope, FaLock, FaUser } from "react-icons/fa6";
-import { getAuthErrorMessage, submitAuth } from "./login.auth";
+import { showErrorAlert } from "@/shared/alerts/alerts";
+import {
+  getAuthErrorMessage,
+  isAlreadyRegisteredEmailError,
+  isEmailNotRegisteredError,
+  submitAuth,
+} from "./login.auth";
 import "./login.css";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateInputs(mode: "login" | "signup", email: string, password: string): string | null {
+  if (!EMAIL_REGEX.test(email)) {
+    return "有効なメールアドレス形式で入力してください。";
+  }
+  if (password.length < 1 || password.length > 256) {
+    return "パスワードは1〜256文字で入力してください。";
+  }
+  if (mode === "signup" && password.length < 6) {
+    return "新規登録時のパスワードは6文字以上で入力してください。";
+  }
+  return null;
+}
 
 const LoginComponent: FC = () => {
   const navigate = useNavigate();
@@ -11,12 +32,15 @@ const LoginComponent: FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
+    const validationError = validateInputs(mode, email, password);
+    if (validationError) {
+      await showErrorAlert("入力エラー", validationError);
+      return;
+    }
     setIsSubmitting(true);
     try {
       await submitAuth({
@@ -27,7 +51,23 @@ const LoginComponent: FC = () => {
       });
       await navigate({ to: "/" });
     } catch (err: unknown) {
-      setError(getAuthErrorMessage(err));
+      if (mode === "login" && isEmailNotRegisteredError(err)) {
+        await showErrorAlert(
+          "未登録メールアドレス",
+          "このメールアドレスは未登録です。新規登録画面に切り替えます。"
+        );
+        setMode("signup");
+        return;
+      }
+      if (mode === "signup" && isAlreadyRegisteredEmailError(err)) {
+        await showErrorAlert(
+          "登録済みメールアドレス",
+          "このメールアドレスはすでに登録されています。ログイン画面に切り替えます。"
+        );
+        setMode("login");
+        return;
+      }
+      await showErrorAlert("認証エラー", getAuthErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -53,7 +93,6 @@ const LoginComponent: FC = () => {
               className={`auth-tab${mode === "login" ? " active" : ""}`}
               onClick={() => {
                 setMode("login");
-                setError(null);
               }}
             >
               ログイン
@@ -65,7 +104,6 @@ const LoginComponent: FC = () => {
               className={`auth-tab${mode === "signup" ? " active" : ""}`}
               onClick={() => {
                 setMode("signup");
-                setError(null);
               }}
             >
               新規登録
@@ -117,6 +155,7 @@ const LoginComponent: FC = () => {
                   value={email}
                   onChange={(ev) => setEmail(ev.target.value)}
                 />
+                <p className="input-hint">有効なメールアドレス形式で入力してください。</p>
               </div>
 
               <div className="form-group">
@@ -134,13 +173,12 @@ const LoginComponent: FC = () => {
                   value={password}
                   onChange={(ev) => setPassword(ev.target.value)}
                 />
-              </div>
-
-              {error && (
-                <p className="auth-form-error" role="alert">
-                  {error}
+                <p className="input-hint">
+                  {mode === "signup"
+                    ? "6〜256文字で入力してください。英字・数字・記号の組み合わせを推奨します。"
+                    : "1〜256文字で入力してください。"}
                 </p>
-              )}
+              </div>
 
               <button type="submit" className="primary-btn auth-submit" disabled={isSubmitting}>
                 {isSubmitting

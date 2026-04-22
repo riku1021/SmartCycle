@@ -4,6 +4,7 @@ import { API_BASE_URL } from "@/config/env";
 export const AUTH_ACCESS_TOKEN_STORAGE_KEY = "smartcycle_access_token" as const;
 
 const UNAUTHORIZED_REDIRECT_PATH = "/";
+const AUTH_ROUTES_WITH_EXPECTED_401 = new Set(["/auth/login", "/auth/signup"]);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -38,8 +39,12 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const requestUrl = error.config?.url ?? "";
+      const isExpectedAuth401 =
+        typeof requestUrl === "string" && AUTH_ROUTES_WITH_EXPECTED_401.has(requestUrl);
       clearAccessToken();
       if (
+        !isExpectedAuth401 &&
         typeof window !== "undefined" &&
         window.location.pathname !== UNAUTHORIZED_REDIRECT_PATH
       ) {
