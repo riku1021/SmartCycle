@@ -1,6 +1,5 @@
 import "@/config/env";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { QueryClientAtomProvider } from "jotai-tanstack-query/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -11,12 +10,7 @@ const router = createRouter<typeof routeTree>({ routeTree });
 const queryClient = createQueryClient();
 
 const App = () => {
-  return (
-    <>
-      <RouterProvider router={router} />
-      <TanStackRouterDevtools router={router} position="bottom-right" />
-    </>
-  );
+  return <RouterProvider router={router} />;
 };
 
 const rootElement = document.getElementById("root");

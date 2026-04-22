@@ -10,12 +10,37 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as ReservationsIndexRouteImport } from './routes/reservations/index'
+import { Route as MapIndexRouteImport } from './routes/map/index'
+import { Route as LotsIndexRouteImport } from './routes/lots/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as ExampleIndexRouteImport } from './routes/example/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReservationsIndexRoute = ReservationsIndexRouteImport.update({
+  id: '/reservations/',
+  path: '/reservations/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapIndexRoute = MapIndexRouteImport.update({
+  id: '/map/',
+  path: '/map/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LotsIndexRoute = LotsIndexRouteImport.update({
+  id: '/lots/',
+  path: '/lots/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginIndexRoute = LoginIndexRouteImport.update({
@@ -28,35 +53,85 @@ const ExampleIndexRoute = ExampleIndexRouteImport.update({
   path: '/example/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/example/': typeof ExampleIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/lots/': typeof LotsIndexRoute
+  '/map/': typeof MapIndexRoute
+  '/reservations/': typeof ReservationsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardIndexRoute
   '/example': typeof ExampleIndexRoute
   '/login': typeof LoginIndexRoute
+  '/lots': typeof LotsIndexRoute
+  '/map': typeof MapIndexRoute
+  '/reservations': typeof ReservationsIndexRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/example/': typeof ExampleIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/lots/': typeof LotsIndexRoute
+  '/map/': typeof MapIndexRoute
+  '/reservations/': typeof ReservationsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/example/' | '/login/'
+  fullPaths:
+    | '/'
+    | '/dashboard/'
+    | '/example/'
+    | '/login/'
+    | '/lots/'
+    | '/map/'
+    | '/reservations/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/example' | '/login'
-  id: '__root__' | '/' | '/example/' | '/login/'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/example'
+    | '/login'
+    | '/lots'
+    | '/map'
+    | '/reservations'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard/'
+    | '/example/'
+    | '/login/'
+    | '/lots/'
+    | '/map/'
+    | '/reservations/'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
   ExampleIndexRoute: typeof ExampleIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  LotsIndexRoute: typeof LotsIndexRoute
+  MapIndexRoute: typeof MapIndexRoute
+  ReservationsIndexRoute: typeof ReservationsIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -66,6 +141,34 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reservations/': {
+      id: '/reservations/'
+      path: '/reservations'
+      fullPath: '/reservations/'
+      preLoaderRoute: typeof ReservationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map/': {
+      id: '/map/'
+      path: '/map'
+      fullPath: '/map/'
+      preLoaderRoute: typeof MapIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lots/': {
+      id: '/lots/'
+      path: '/lots'
+      fullPath: '/lots/'
+      preLoaderRoute: typeof LotsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login/': {
@@ -82,13 +185,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExampleIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/dashboard'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
   ExampleIndexRoute: ExampleIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
+  LotsIndexRoute: LotsIndexRoute,
+  MapIndexRoute: MapIndexRoute,
+  ReservationsIndexRoute: ReservationsIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

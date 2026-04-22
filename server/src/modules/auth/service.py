@@ -1,16 +1,15 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import cast
 
 import jwt
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.models.user import User
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_pwd = PasswordHash.recommended()
 
 
 class AuthService:
@@ -19,10 +18,10 @@ class AuthService:
         self._settings = settings
 
     def _hash_password(self, password: str) -> str:
-        return cast("str", _pwd.hash(password))
+        return _pwd.hash(password)
 
     def _verify_password(self, plain: str, hashed: str) -> bool:
-        return cast("bool", _pwd.verify(plain, hashed))
+        return _pwd.verify(plain, hashed)
 
     async def get_user_by_email(self, email: str) -> User | None:
         result = await self._session.execute(select(User).where(User.email == email))
