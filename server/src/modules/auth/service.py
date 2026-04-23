@@ -27,7 +27,7 @@ class AuthService:
         result = await self._session.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
-    async def get_user_by_id(self, user_id: int) -> User | None:
+    async def get_user_by_id(self, user_id: uuid.UUID) -> User | None:
         result = await self._session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
@@ -54,7 +54,7 @@ class AuthService:
             return None
         return user
 
-    def create_access_token(self, user_id: int) -> str:
+    def create_access_token(self, user_id: uuid.UUID) -> str:
         now = datetime.now(tz=UTC)
         expire = now + timedelta(minutes=self._settings.jwt_expire_minutes)
         return jwt.encode(
@@ -67,14 +67,18 @@ class AuthService:
             algorithm=self._settings.jwt_algorithm,
         )
 
-    def decode_sub_user_id(self, token: str) -> int:
+    def decode_sub_user_id(self, token: str) -> uuid.UUID:
         payload = jwt.decode(
             token,
             self._settings.jwt_secret,
             algorithms=[self._settings.jwt_algorithm],
         )
         sub = payload.get("sub")
-        if not isinstance(sub, str) or not sub.isdecimal():
+        if not isinstance(sub, str):
             msg = "Invalid token sub"
             raise jwt.InvalidTokenError(msg)
-        return int(sub)
+        try:
+            return uuid.UUID(sub)
+        except ValueError as exc:
+            msg = "Invalid token sub"
+            raise jwt.InvalidTokenError(msg) from exc

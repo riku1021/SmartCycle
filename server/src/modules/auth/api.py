@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy.exc import IntegrityError
@@ -35,7 +37,7 @@ class LoginBody(BaseModel):
 
 
 class UserOut(BaseModel):
-    id: int
+    id: uuid.UUID
     email: str
     name: str
 
