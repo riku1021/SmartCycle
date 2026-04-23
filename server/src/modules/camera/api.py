@@ -44,28 +44,31 @@ _latest_detection = LatestDetectionResponse(
 async def receive_camera_image(
     request: Request,
 ) -> CameraImageReceiveResponse:
-    body = await request.body()
+    image_bytes = await request.body()
     content_type = request.headers.get("content-type")
-    if not body:
+    if not image_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Image payload is empty",
         )
 
-    # NOTE: 画像解析・保存処理は次ステップで実装
+    # TODO: ここで物体検出（自転車検出）を実装してください。
+    # 例: image_bytes を推論モデルへ入力し、detected_count と boxes を実値で更新する。
+
+    # TODO: 推論結果のDB永続化は別タスクで実装する。
     global _latest_detection
     _latest_detection = LatestDetectionResponse(
         detected_count=0,
         boxes=[],
         received_at=datetime.now(UTC).isoformat(),
         content_type=content_type,
-        size_bytes=len(body),
+        size_bytes=len(image_bytes),
     )
 
     return CameraImageReceiveResponse(
         message="Camera image received. Processing is not implemented yet.",
         content_type=content_type,
-        size_bytes=len(body),
+        size_bytes=len(image_bytes),
     )
 
 
