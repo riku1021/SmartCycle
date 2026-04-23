@@ -70,12 +70,14 @@ pre-push:
     # ========================================================
     - name: ensure-up-to-date-before-push
       run: |
-        git fetch origin main --quiet
-        if ! git merge-base --is-ancestor origin/main HEAD; then
-          echo "Push blocked: local branch is behind origin/main."
-          echo "Please run: git rebase origin/main"
-          echo "After resolving conflicts locally, push again."
-          exit 1
+        if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+          git fetch origin main --quiet
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            echo "Push blocked: local branch is behind origin/main."
+            echo "Please run: git rebase origin/main"
+            echo "After resolving conflicts locally, push again."
+            exit 1
+          fi
         fi
         upstream_ref="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
         if [ -n "$upstream_ref" ] && [ "$upstream_ref" != "origin/main" ]; then
