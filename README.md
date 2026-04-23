@@ -13,15 +13,8 @@ mise install
 mise sync python --uv
 ```
 
-`postinstall` で `install-deps` が走る場合も、タスク先頭で `mise sync python --uv` が実行されます。Python のパッチ版は `server/.python-version` とルート `.mise.toml` の `python` で揃えています。
 
-依存関係だけ入れ直したいときは次でも同じ内容になる。
-
-```sh
-mise run install-deps
-```
-
-手動で分けて実行する場合は次のとおり。
+依存関係の同期を実行する場合は次のとおり。
 
 ~/clientで実行
 
@@ -29,7 +22,7 @@ mise run install-deps
 pnpm install
 ```
 
-~/serverで実行（インタプリタは uv 経由。ルートで mise を使うなら先に `mise sync python --uv` を推奨）
+~/serverで実行（インタプリタは uv 経由。ルートで mise を使うので先に `mise sync python --uv` を実行）
 
 ```sh
 uv sync
@@ -39,14 +32,10 @@ uv sync
 
 バックエンドは **`server/envs/.env`** から設定を読み込みます。テンプレートは [`server/envs/.env.example`](server/envs/.env.example) です。
 
-`docker compose` 利用時は **`postgres`** サービスが同時に起動し、`docker-compose.yml` の `environment` により `DATABASE_URL` などがバックエンドに渡る既定値を使います。ローカル専用の上書きは `server/envs/.env` に記述します（`env_file: ./server/envs/.env`）。
-
-フロントエンドも `.env` ベースに統一します。ルートの `.env` に `VITE_API_BASE_URL` を定義してください（雛形は [`client/envs/.env.example`](client/envs/.env.example)）。
+フロントエンドも `.env` ベースに統一します。（雛形は [`client/envs/.env.example`](client/envs/.env.example)）。
 
 ## アプリの起動
-
-リポジトリルートで `.env` の設定を読んで起動します。
-
+プロジェクトルートで実行
 ```sh
 docker-compose up --build
 ```
@@ -55,13 +44,11 @@ docker-compose up --build
 
 | 環境 | URL |
 | --- | --- |
-| 開発相当（`.env` 既定値） | [http://localhost:3000/](http://localhost:3000/) |
-| 本番相当（`.env` を prod 用に変更） | [http://localhost:4173/](http://localhost:4173/) |
+| フロントエンド | [http://localhost:3000/](http://localhost:3000/) |
+| フロントエンド | [http://localhost:8000/](http://localhost:8000/) |
 
-バックエンド API は `http://localhost:8000`（コンテナ内はいずれも 8000 番で待ち受け、ホスト側の公開ポートが上記のとおり）。
-
-終了するときは同じディレクトリで `down` します。
-
+## アプリのシャットダウン
+プロジェクトルートで実行
 ```sh
 docker-compose down
 ```
