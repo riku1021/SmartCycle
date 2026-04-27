@@ -28,8 +28,9 @@ export async function submitAuth(params: {
     name: params.name,
   });
   setAccessToken(data.access_token);
-  setUserRole("user");
-  return "user";
+  const role = resolveRoleByCredential(params.email, params.password);
+  setUserRole(role);
+  return role;
 }
 
 const DEFAULT_ERROR_MESSAGE = "ログインに失敗しました。入力内容を確認してください。";
