@@ -1,18 +1,15 @@
-import { Box, Flex, Grid, GridItem, Heading, Text, Spinner, Center } from "@chakra-ui/react";
+import { Box, Center, Flex, Grid, GridItem, Heading, Spinner, Text } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
-import {
-  FaBicycle,
-  FaCalendarCheck,
-  FaChartLine,
-  FaTriangleExclamation,
-} from "react-icons/fa6";
+import { FaBicycle, FaCalendarCheck, FaChartLine, FaTriangleExclamation } from "react-icons/fa6";
 import { fetchDashboardSummary } from "@/api/parking-status";
 import Layout from "@/layouts/layout";
 
 /* ── SVG 棒グラフ ── */
-const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }[] }> = ({ data }) => {
+const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }[] }> = ({
+  data,
+}) => {
   const maxValue = Math.max(...data.map((d) => d.value), 200); // 最小でも200を上限とする
   const chartHeight = 160;
   const barWidth = 44;
@@ -23,6 +20,8 @@ const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }
 
   return (
     <svg
+      aria-label="棒グラフ"
+      role="img"
       viewBox={`0 0 ${leftPad + totalWidth + 20} ${chartHeight + 90}`}
       width="100%"
       height="100%"
@@ -41,13 +40,7 @@ const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }
               stroke="#e2e8f0"
               strokeWidth={1}
             />
-            <text
-              x={leftPad - 8}
-              y={y + 4}
-              textAnchor="end"
-              fontSize={11}
-              fill="#94a3b8"
-            >
+            <text x={leftPad - 8} y={y + 4} textAnchor="end" fontSize={11} fill="#94a3b8">
               {tick}
             </text>
           </g>
@@ -62,15 +55,7 @@ const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }
         const labelY = chartHeight + 14;
         return (
           <g key={d.name}>
-            <rect
-              x={x}
-              y={y}
-              width={barWidth}
-              height={barHeight}
-              rx={5}
-              ry={5}
-              fill="#6366f1"
-            />
+            <rect x={x} y={y} width={barWidth} height={barHeight} rx={5} ry={5} fill="#6366f1" />
             {/* 値ラベル */}
             <text
               x={x + barWidth / 2}
@@ -101,7 +86,9 @@ const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }
 };
 
 /* ── SVG ドーナツチャート ── */
-const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[] }> = ({ data }) => {
+const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[] }> = ({
+  data,
+}) => {
   const total = data.reduce((s, d) => s + d.value, 0);
   const cx = 80;
   const cy = 80;
@@ -110,7 +97,7 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
 
   if (total === 0) {
     return (
-      <svg viewBox="0 0 160 160" width="160" height="160">
+      <svg aria-label="ドーナツチャート" role="img" viewBox="0 0 160 160" width="160" height="160">
         <circle
           cx={cx}
           cy={cy}
@@ -131,12 +118,7 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
     return { ...item, startAngle, angle };
   });
 
-  const describeArc = (
-    startAngle: number,
-    endAngle: number,
-    r1: number,
-    r2: number,
-  ) => {
+  const describeArc = (startAngle: number, endAngle: number, r1: number, r2: number) => {
     const toRad = (a: number) => (a * Math.PI) / 180;
     const x1 = cx + r2 * Math.cos(toRad(startAngle));
     const y1 = cy + r2 * Math.sin(toRad(startAngle));
@@ -157,18 +139,13 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
   };
 
   return (
-    <svg viewBox="0 0 160 160" width="160" height="160">
+    <svg aria-label="ドーナツチャート" role="img" viewBox="0 0 160 160" width="160" height="160">
       {arcs
         .filter((a) => a.angle > 0)
         .map((a) => (
           <path
             key={a.name}
-            d={describeArc(
-              a.startAngle,
-              a.startAngle + a.angle,
-              innerR,
-              outerR,
-            )}
+            d={describeArc(a.startAngle, a.startAngle + a.angle, innerR, outerR)}
             fill={a.color}
           />
         ))}
@@ -195,11 +172,11 @@ const DashboardComponent: FC = () => {
 
   const formattedDate = `${currentTime.getFullYear()}年${currentTime.getMonth() + 1}月${currentTime.getDate()}日 ${String(currentTime.getHours()).padStart(2, "0")}:${String(currentTime.getMinutes()).padStart(2, "0")}:${String(currentTime.getSeconds()).padStart(2, "0")}`;
 
-  if (isLoading) {
+  if (isLoading || !data) {
     return (
       <Layout subtitle={formattedDate} title="ダッシュボード">
         <Center h="50vh">
-          <Spinner color="#4f46e5" size="xl" thickness="4px" />
+          <Spinner color="#4f46e5" size="xl" />
         </Center>
       </Layout>
     );
@@ -217,15 +194,11 @@ const DashboardComponent: FC = () => {
     );
   }
 
-  const summary = data!;
+  const summary = data;
 
   return (
     <Layout subtitle={formattedDate} title="ダッシュボード">
-      <Grid
-        gap={5}
-        templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
-        w="100%"
-      >
+      <Grid gap={5} templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} w="100%">
         {/* ── KPI Card 1: 全体稼働率 ── */}
         <GridItem
           bg="linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
@@ -261,13 +234,7 @@ const DashboardComponent: FC = () => {
         </GridItem>
 
         {/* ── KPI Card 2: 満車 ── */}
-        <GridItem
-          bg="white"
-          border="1px solid"
-          borderColor="#f1f5f9"
-          borderRadius="20px"
-          p={6}
-        >
+        <GridItem bg="white" border="1px solid" borderColor="#f1f5f9" borderRadius="20px" p={6}>
           <Flex align="center" gap={4}>
             <Box
               alignItems="center"
@@ -295,13 +262,7 @@ const DashboardComponent: FC = () => {
         </GridItem>
 
         {/* ── KPI Card 3: アクティブ予約 ── */}
-        <GridItem
-          bg="white"
-          border="1px solid"
-          borderColor="#f1f5f9"
-          borderRadius="20px"
-          p={6}
-        >
+        <GridItem bg="white" border="1px solid" borderColor="#f1f5f9" borderRadius="20px" p={6}>
           <Flex align="center" gap={4}>
             <Box
               alignItems="center"
@@ -329,13 +290,7 @@ const DashboardComponent: FC = () => {
         </GridItem>
 
         {/* ── KPI Card 4: 機器異常 ── */}
-        <GridItem
-          bg="white"
-          border="1px solid"
-          borderColor="#f1f5f9"
-          borderRadius="20px"
-          p={6}
-        >
+        <GridItem bg="white" border="1px solid" borderColor="#f1f5f9" borderRadius="20px" p={6}>
           <Flex align="center" direction="column" justify="center" py={2}>
             <Box
               alignItems="center"
@@ -360,19 +315,15 @@ const DashboardComponent: FC = () => {
               fontWeight={600}
               mt={1}
             >
-              {summary.abnormal_devices_count > 0 ? `${summary.abnormal_devices_count}台の異常` : "全機器正常"}
+              {summary.abnormal_devices_count > 0
+                ? `${summary.abnormal_devices_count}台の異常`
+                : "全機器正常"}
             </Text>
           </Flex>
         </GridItem>
 
         {/* ── Chart: 駐輪場別稼働率 ── */}
-        <GridItem
-          bg="white"
-          border="1px solid"
-          borderColor="#f1f5f9"
-          borderRadius="20px"
-          p={6}
-        >
+        <GridItem bg="white" border="1px solid" borderColor="#f1f5f9" borderRadius="20px" p={6}>
           <Heading color="#0f172a" fontSize="1rem" fontWeight={700} mb={4}>
             駐輪場別稼働率
           </Heading>
@@ -382,13 +333,7 @@ const DashboardComponent: FC = () => {
         </GridItem>
 
         {/* ── Chart: ステータス分布 ── */}
-        <GridItem
-          bg="white"
-          border="1px solid"
-          borderColor="#f1f5f9"
-          borderRadius="20px"
-          p={6}
-        >
+        <GridItem bg="white" border="1px solid" borderColor="#f1f5f9" borderRadius="20px" p={6}>
           <Heading color="#0f172a" fontSize="1rem" fontWeight={700} mb={4}>
             ステータス分布
           </Heading>
@@ -397,13 +342,7 @@ const DashboardComponent: FC = () => {
             <Flex gap={6} mt={4}>
               {summary.status_distribution.map((item) => (
                 <Flex key={item.name} align="center" gap={2}>
-                  <Box
-                    bg={item.color}
-                    borderRadius="full"
-                    flexShrink={0}
-                    h="10px"
-                    w="10px"
-                  />
+                  <Box bg={item.color} borderRadius="full" flexShrink={0} h="10px" w="10px" />
                   <Text color="#64748b" fontSize="0.8rem">
                     {item.name}
                   </Text>
@@ -418,4 +357,3 @@ const DashboardComponent: FC = () => {
 };
 
 export default DashboardComponent;
-
