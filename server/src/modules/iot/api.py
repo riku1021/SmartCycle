@@ -58,32 +58,60 @@ class DashboardSummaryResponse(BaseModel):
 async def get_dashboard_summary() -> DashboardSummaryResponse:
     """ダッシュボード用のサマリーデータを取得"""
     # 実際はDBから取得するが、現状はメモリ内のデータを使用
-    statuses = list(_latest_status_by_lot_id.values())
     
-    total_capacity = 530  # モック値
-    used_count = sum(s.available_count for s in statuses) # 本来は available_count は「空き」だが、ダッシュボードでは「使用中」として扱うか調整が必要
-    # 画像では 0/530 なので、used_count を計算する。
-    # ここでは仮に available_count が「使用中」を指すと仮定するか、あるいはロジックを合わせる。
-    # ひとまず、フロントの表示に合わせるために計算。
+    # 駐輪場ごとのデフォルト値（モックデータ）
+    default_values = {
+        1: 180,  # グランフロント大阪
+        2: 150,  # ヨドバシ梅田
+        3: 45,   # 大阪ステーションシティ
+        4: 37,   # 梅田スカイビル
+    }
+    capacities = {
+        1: 200,
+        2: 150,
+        3: 100,
+        4: 80,
+    }
     
-    total_lots_count = 4
-    full_lots_count = sum(1 for s in statuses if s.available_count >= 100) # 仮の判定
+    occupancy_by_lot = []
+    lot_names = {
+        1: ("グランフロント大阪 南館 駐輪場", "グランフロント大阪"),
+        2: ("ヨドバシ梅田タワー 駐輪場", "ヨドバシ梅田"),
+        3: ("大阪ステーションシティ 駐輪場", "大阪ステーション"),
+        4: ("梅田スカイビル 駐輪場", "梅田スカイビル"),
+    }
     
-    occupancy_by_lot = [
-        {"name": "グランフロント大阪 南館 駐輪場", "shortName": "グランフロント大阪", "value": _latest_status_by_lot_id.get(1, ParkingStatusResponse(parking_lot_id=1, available_count=0, updated_at="")).available_count},
-        {"name": "ヨドバシ梅田タワー 駐輪場", "shortName": "ヨドバシ梅田", "value": _latest_status_by_lot_id.get(2, ParkingStatusResponse(parking_lot_id=2, available_count=0, updated_at="")).available_count},
-        {"name": "大阪ステーションシティ 駐輪場", "shortName": "大阪ステーション", "value": _latest_status_by_lot_id.get(3, ParkingStatusResponse(parking_lot_id=3, available_count=0, updated_at="")).available_count},
-        {"name": "梅田スカイビル 駐輪場", "shortName": "梅田スカイビル", "value": _latest_status_by_lot_id.get(4, ParkingStatusResponse(parking_lot_id=4, available_count=0, updated_at="")).available_count},
-    ]
+    used_count = 0
+    full_lots_count = 0
+    total_capacity = sum(capacities.values())
+    total_lots_count = len(lot_names)
     
+    for lot_id, (name, short_name) in lot_names.items():
+        # メモリにデータがあればそれを使い、なければデフォルト値を使用
+        current_val = _latest_status_by_lot_id.get(
+            lot_id, 
+            ParkingStatusResponse(parking_lot_id=lot_id, available_count=default_values[lot_id], updated_at="")
+        ).available_count
+        
+        occupancy_by_lot.append({
+            "name": name,
+            "shortName": short_name,
+            "value": current_val
+        })
+        used_count += current_val
+        
+        # 満車判定（ここでは 稼働率 95% 以上を満車とする）
+        if current_val >= capacities[lot_id] * 0.95:
+            full_lots_count += 1
+            
     return DashboardSummaryResponse(
         total_occupancy_rate=round((used_count / total_capacity) * 100, 1) if total_capacity > 0 else 0,
         used_count=used_count,
         total_capacity=total_capacity,
         full_lots_count=full_lots_count,
         total_lots_count=total_lots_count,
-        active_reservations_count=0,  # 未実装
-        abnormal_devices_count=0,      # 未実装
+        active_reservations_count=24,  # モック値
+        abnormal_devices_count=1,      # モック値
         occupancy_by_lot=occupancy_by_lot,
         status_distribution=[
             {"name": "空車あり", "value": total_lots_count - full_lots_count, "color": "#4f46e5"},
