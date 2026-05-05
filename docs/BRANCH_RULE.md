@@ -19,11 +19,11 @@ git checkout issue-issue番号
 git branch
 ```
 
-これで作業予定の`* issue/issue番号`と出力されれば、OK。
+これで作業予定の`* issue-issue番号`と出力されれば、OK。
 もし、作業予定の issue にいない場合は以下のコマンドで想定の branch に遷移する。
 
 ```bash
-git switch issue/番号
+git switch issue-番号
 ```
 
 2. ターミナルから作業ディレクトリに移動し、リモートリポジトリの状態を同期する。
