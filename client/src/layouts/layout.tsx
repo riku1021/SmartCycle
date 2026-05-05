@@ -41,7 +41,7 @@ const Layout: FC<LayoutProps> = ({
         pb={{ base: isMapLayout ? "74px" : "92px", md: 8 }}
         position={isMapLayout ? "relative" : "static"}
         px={{ base: isMapLayout ? 0 : 4, md: isMapLayout ? 0 : 8 }}
-        py={{ base: isMapLayout ? 0 : 5, md: isMapLayout ? 0 : 8 }}
+        pt={{ base: isMapLayout ? 0 : 5, md: isMapLayout ? 0 : 8 }}
       >
         <Header hidden={hideHeader} subtitle={subtitle} title={title} />
         {children}
