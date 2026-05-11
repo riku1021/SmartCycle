@@ -1,10 +1,22 @@
 import "leaflet/dist/leaflet.css";
-import { Badge, Box, Button, Flex, Heading, IconButton, Text } from "@chakra-ui/react";
+import { useNavigate } from "@tanstack/react-router";
 import L, { type GeoJSON, type Map as LeafletMap } from "leaflet";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FaLocationArrow, FaLocationCrosshairs, FaXmark } from "react-icons/fa6";
-import Layout from "@/layouts/layout";
+import {
+  FaBell,
+  FaBicycle,
+  FaCalendarCheck,
+  FaChevronLeft,
+  FaCircleCheck,
+  FaClockRotateLeft,
+  FaLocationArrow,
+  FaLocationCrosshairs,
+  FaLocationDot,
+  FaMagnifyingGlass,
+  FaUser,
+  FaXmark,
+} from "react-icons/fa6";
 
 type ParkingLot = {
   id: number;
@@ -48,37 +60,70 @@ const LOTS: ParkingLot[] = [
   },
 ];
 
+// モック通知
+const NOTIFICATIONS = [
+  {
+    id: 1,
+    title: "予約完了",
+    text: "北浜サイクルポートの予約が完了しました。",
+    date: "5分前",
+    unread: true,
+  },
+  {
+    id: 2,
+    title: "空き情報更新",
+    text: "本町サイクルデッキに空きが出ました（3台）",
+    date: "20分前",
+    unread: true,
+  },
+  {
+    id: 3,
+    title: "利用完了",
+    text: "梅田ステーション東の利用が完了しました。",
+    date: "昨日",
+    unread: false,
+  },
+];
+
 const MapComponent: FC = () => {
+  const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const userMarkerRef = useRef<L.CircleMarker | null>(null);
   const routeLayerRef = useRef<GeoJSON | null>(null);
+
   const [currentLatLng, setCurrentLatLng] = useState<[number, number]>(MAP_CENTER);
   const [selectedLotId, setSelectedLotId] = useState<number | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isRouting, setIsRouting] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [mapMessage, setMapMessage] = useState("地図を読み込み中...");
-  const selectedLot = selectedLotId ? LOTS.find((lot) => lot.id === selectedLotId) : null;
+  const [mapMessage, setMapMessage] = useState("駐輪場を選択してください");
+
+  // UI 状態
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showNotif, setShowNotif] = useState(false);
+  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [showReserveModal, setShowReserveModal] = useState(false);
+  const [reserveHours, setReserveHours] = useState(1);
+  const [reserveSuccess, setReserveSuccess] = useState(false);
+
+  const unreadCount = notifications.filter((n) => n.unread).length;
+  const selectedLot = selectedLotId ? LOTS.find((l) => l.id === selectedLotId) : null;
 
   const getStatusClass = useCallback(
     (available: number, total: number): "free" | "few" | "full" => {
-      if (available === 0) {
-        return "full";
-      }
-      if (available <= total * 0.2) {
-        return "few";
-      }
+      if (available === 0) return "full";
+      if (available <= total * 0.2) return "few";
       return "free";
     },
     []
   );
 
+  // ---- マップ初期化 ----
   useEffect(() => {
     const mapContainer = mapContainerRef.current;
-    if (!mapContainer || mapRef.current) {
-      return;
-    }
+    if (!mapContainer || mapRef.current) return;
 
     const map = L.map(mapContainer, { zoomControl: false }).setView(MAP_CENTER, 15);
     mapRef.current = map;
@@ -100,17 +145,11 @@ const MapComponent: FC = () => {
 
     LOTS.forEach((lot) => {
       const status = getStatusClass(lot.available_spots, lot.total_spots);
-      const title = status === "full" ? "満" : lot.available_spots;
+      const title = status === "full" ? "満" : String(lot.available_spots);
       const pinColor = status === "full" ? "#ef4444" : status === "few" ? "#f59e0b" : "#10b981";
       const icon = L.divIcon({
         className: "",
-        html: `<div style="
-          width:44px;height:44px;border-radius:50%;
-          border:3px solid #fff;
-          box-shadow:0 4px 10px rgba(0,0,0,0.3);
-          display:flex;flex-direction:column;justify-content:center;align-items:center;
-          color:#fff;font-weight:800;font-size:0.85rem;background:${pinColor};
-        ">
+        html: `<div style="width:44px;height:44px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.3);display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-weight:800;font-size:0.85rem;background:${pinColor};cursor:pointer;">
           <span style="font-size:0.7rem;margin-bottom:2px;">P</span>
           <span>${title}</span>
         </div>`,
@@ -121,15 +160,12 @@ const MapComponent: FC = () => {
       marker.on("click", () => {
         setSelectedLotId(lot.id);
         setPanelOpen(true);
+        setShowSearch(false);
         map.panTo([lot.latitude, lot.longitude]);
       });
     });
 
-    setMapMessage("駐輪場を選択してください");
-
-    const resizeMap = () => {
-      map.invalidateSize();
-    };
+    const resizeMap = () => map.invalidateSize();
     const resizeTimer = window.setTimeout(resizeMap, 120);
     window.addEventListener("resize", resizeMap);
 
@@ -143,19 +179,19 @@ const MapComponent: FC = () => {
     };
   }, [getStatusClass]);
 
+  // ---- 現在地取得 ----
   const handleLocateUser = () => {
     if (!navigator.geolocation) {
       setMapMessage("このブラウザは位置情報に対応していません");
       return;
     }
     setIsLocating(true);
-    setMapMessage("現在地を取得中...");
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextLatLng: [number, number] = [position.coords.latitude, position.coords.longitude];
-        setCurrentLatLng(nextLatLng);
-        userMarkerRef.current?.setLatLng(nextLatLng);
-        mapRef.current?.flyTo(nextLatLng, 16);
+      (pos) => {
+        const ll: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setCurrentLatLng(ll);
+        userMarkerRef.current?.setLatLng(ll);
+        mapRef.current?.flyTo(ll, 16);
         setMapMessage("現在地を取得しました");
         setIsLocating(false);
       },
@@ -166,44 +202,31 @@ const MapComponent: FC = () => {
         setMapMessage("現在地が取得できないため大阪駅を表示しています");
         setIsLocating(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 8000,
-      }
+      { enableHighAccuracy: true, timeout: 8000 }
     );
   };
 
+  // ---- ルート検索 ----
   const handleRoute = async () => {
-    if (!selectedLot || !panelOpen) {
-      return;
-    }
+    if (!selectedLot || !panelOpen) return;
     const map = mapRef.current;
-    if (!map) {
-      return;
-    }
+    if (!map) return;
 
     setIsRouting(true);
-    setMapMessage("OSRM でルートを計算しています...");
-
+    setMapMessage("ルートを計算しています...");
     try {
       if (routeLayerRef.current) {
         map.removeLayer(routeLayerRef.current);
         routeLayerRef.current = null;
       }
-
       const url = `https://router.project-osrm.org/route/v1/bicycle/${currentLatLng[1]},${currentLatLng[0]};${selectedLot.longitude},${selectedLot.latitude}?overview=full&geometries=geojson`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("route request failed");
-      }
-      const data = (await response.json()) as {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("route failed");
+      const data = (await res.json()) as {
         routes?: Array<{ duration: number; geometry: GeoJSON.GeoJsonObject }>;
       };
       const route = data.routes?.[0];
-      if (!route) {
-        throw new Error("route not found");
-      }
-
+      if (!route) throw new Error("no route");
       routeLayerRef.current = L.geoJSON(route.geometry, {
         style: { color: "#4F46E5", weight: 5, opacity: 0.9 },
       }).addTo(map);
@@ -221,14 +244,44 @@ const MapComponent: FC = () => {
     }
   };
 
+  // ---- 詳細パネル閉じる ----
   const handleClosePanel = () => {
     setPanelOpen(false);
     setSelectedLotId(null);
+    setReserveSuccess(false);
     if (routeLayerRef.current && mapRef.current) {
       mapRef.current.removeLayer(routeLayerRef.current);
       routeLayerRef.current = null;
     }
   };
+
+  // ---- 予約する ----
+  const handleReserve = () => {
+    if (!selectedLot) return;
+    setReserveSuccess(true);
+    setShowReserveModal(false);
+    setMapMessage(`${selectedLot.name}の予約が完了しました！`);
+    // 通知を追加
+    setNotifications((prev) => [
+      {
+        id: Date.now(),
+        title: "予約完了",
+        text: `${selectedLot.name}の予約が完了しました。`,
+        date: "今",
+        unread: true,
+      },
+      ...prev,
+    ]);
+  };
+
+  // ---- 検索フィルタ ----
+  const filteredLots = searchQuery.trim()
+    ? LOTS.filter(
+        (l) =>
+          l.name.includes(searchQuery) ||
+          getStatusClass(l.available_spots, l.total_spots) === searchQuery
+      )
+    : LOTS;
 
   const statusClass = selectedLot
     ? getStatusClass(selectedLot.available_spots, selectedLot.total_spots)
@@ -237,124 +290,508 @@ const MapComponent: FC = () => {
     statusClass === "full" ? "満車" : statusClass === "few" ? "残りわずか" : "空きあり";
 
   return (
-    <Layout hideHeader isMapLayout subtitle="地図から近くの駐輪場を探せます" title="マップ検索">
-      <Box
-        h="100%"
-        minH={{ base: "calc(100vh - 74px)", md: "100vh" }}
-        overflow="hidden"
-        position="relative"
-      >
-        <Box id="map" inset={0} position="absolute" ref={mapContainerRef} />
+    <div id="app-layout" className="full-map-screen">
+      <div id="map" ref={mapContainerRef} />
 
-        <IconButton
-          aria-label="現在地を取得"
-          borderRadius="full"
-          bottom={{ base: "90px", md: "40px" }}
-          boxShadow="0 4px 10px rgba(0, 0, 0, 0.15)"
-          color="#4f46e5"
-          h="56px"
-          disabled={isLocating}
-          onClick={handleLocateUser}
-          position="absolute"
-          right={{ base: "20px", md: "40px" }}
-          variant="solid"
-          w="56px"
-          zIndex={1000}
-        >
-          {isLocating ? <Text fontSize="md">...</Text> : <FaLocationCrosshairs />}
-        </IconButton>
-
-        <Box
-          bg="rgba(255, 255, 255, 0.95)"
-          border="1px solid rgba(255, 255, 255, 0.5)"
-          borderRadius="3xl"
-          boxShadow="panel"
-          left={{ base: 3, md: "auto" }}
-          opacity={panelOpen ? 1 : 0}
-          p={6}
-          pointerEvents={panelOpen ? "auto" : "none"}
-          position="absolute"
-          right={{ base: 3, md: "40px" }}
-          top={{ base: 3, md: "40px" }}
-          transform={panelOpen ? "translateX(0)" : "translateX(20px)"}
-          transition="all 0.3s"
-          w={{ base: "auto", md: "360px" }}
-          zIndex={1000}
-        >
-          <IconButton
-            aria-label="閉じる"
-            color="#64748b"
-            onClick={handleClosePanel}
-            position="absolute"
-            right={5}
-            top={5}
-            variant="ghost"
+      {/* ===== トップバー ===== */}
+      <div className="app-top-bar">
+        <div className="app-logo-small">
+          <FaBicycle style={{ fontSize: "1.4rem" }} />
+          <span>SmartCycle</span>
+        </div>
+        <div className="app-top-actions">
+          <button
+            type="button"
+            className="notif-bell-btn"
+            id="notif-btn"
+            onClick={() => {
+              setShowNotif(!showNotif);
+              setShowSearch(false);
+            }}
           >
-            <FaXmark />
-          </IconButton>
+            <FaBell />
+            {unreadCount > 0 && (
+              <span className="notif-badge" id="notif-badge">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
 
-          <Box mb={6} pr={8}>
-            <Heading as="h2" fontSize="1.4rem" mb={3}>
-              {selectedLot?.name ?? "駐輪場名"}
-            </Heading>
-            <Badge
-              bg={
-                statusClass === "full" ? "#ef4444" : statusClass === "few" ? "#f59e0b" : "#10b981"
-              }
-              borderRadius="full"
-              color="white"
-              px={3}
-              py={1.5}
+      {/* ===== 通知パネル ===== */}
+      {showNotif && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{ alignItems: "flex-start", paddingTop: "70px", zIndex: 1800 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowNotif(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setShowNotif(false);
+          }}
+        >
+          <div
+            style={{
+              background: "var(--surface)",
+              borderRadius: "20px",
+              width: "calc(100% - 32px)",
+              maxWidth: "400px",
+              margin: "0 auto",
+              overflow: "hidden",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--border)",
+              }}
             >
-              {statusLabel}
-            </Badge>
-          </Box>
+              <strong style={{ fontSize: "1rem" }}>通知</strong>
+              <button
+                type="button"
+                onClick={() => {
+                  setNotifications((n) => n.map((x) => ({ ...x, unread: false })));
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--primary)",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                すべて既読にする
+              </button>
+            </div>
+            <div className="notice-list">
+              {notifications.map((n) => (
+                <div key={n.id} className={`notice-card ${n.unread ? "unread" : ""}`}>
+                  <div className="notice-icon">
+                    {n.unread ? <FaCircleCheck style={{ color: "var(--primary)" }} /> : <FaBell />}
+                  </div>
+                  <button
+                    type="button"
+                    className="notice-body"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      width: "100%",
+                      padding: 0,
+                    }}
+                    onClick={() =>
+                      setNotifications((prev) =>
+                        prev.map((x) => (x.id === n.id ? { ...x, unread: false } : x))
+                      )
+                    }
+                  >
+                    <div className="notice-title">{n.title}</div>
+                    <div className="notice-text">{n.text}</div>
+                    <div className="notice-date">{n.date}</div>
+                  </button>
+                  <button
+                    type="button"
+                    className="notice-delete-btn"
+                    onClick={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))}
+                  >
+                    <FaXmark />
+                  </button>
+                </div>
+              ))}
+              {notifications.length === 0 && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "32px",
+                    color: "var(--text2)",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  通知はありません
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-          <Flex gap={4} mb={5}>
-            <Box bg="#f1f5f9" borderRadius="xl" flex={1} p={4}>
-              <Text color="#64748b" fontSize="0.8rem" fontWeight={600}>
-                空き台数
-              </Text>
-              <Text color="#0f172a" fontSize="1rem" fontWeight={700}>
-                <Text as="strong" color="#4f46e5" fontSize="1.5rem" fontWeight={800}>
+      {/* ===== 目的地検索パネル ===== */}
+      {showSearch && (
+        <div className="destination-search-panel">
+          <div className="dest-panel-header">
+            <button
+              type="button"
+              className="back-btn"
+              onClick={() => {
+                setShowSearch(false);
+                setSearchQuery("");
+              }}
+            >
+              <FaChevronLeft />
+            </button>
+            <div className="dest-search-bar">
+              <FaMagnifyingGlass style={{ color: "#94a3b8" }} />
+              <input
+                type="text"
+                placeholder="駐輪場を検索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#94a3b8",
+                  }}
+                >
+                  <FaXmark />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="dest-filter-row">
+            {["", "free", "few", "full"].map((f) => (
+              <button
+                type="button"
+                key={f}
+                className={`filter-tab ${searchQuery === f ? "active" : ""}`}
+                onClick={() => setSearchQuery(f === searchQuery ? "" : f)}
+              >
+                {f === ""
+                  ? "すべて"
+                  : f === "free"
+                    ? "空きあり"
+                    : f === "few"
+                      ? "残りわずか"
+                      : "満車"}
+              </button>
+            ))}
+          </div>
+          <div className="dest-results">
+            {filteredLots.map((lot) => {
+              const sc = getStatusClass(lot.available_spots, lot.total_spots);
+              const sl = sc === "full" ? "満車" : sc === "few" ? "残りわずか" : "空きあり";
+              return (
+                <button
+                  type="button"
+                  key={lot.id}
+                  className="search-result-item"
+                  style={{
+                    width: "100%",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    padding: 0,
+                  }}
+                  onClick={() => {
+                    setSelectedLotId(lot.id);
+                    setPanelOpen(true);
+                    setShowSearch(false);
+                    setSearchQuery("");
+                    mapRef.current?.panTo([lot.latitude, lot.longitude]);
+                  }}
+                >
+                  <div className="result-main">
+                    <div className="result-info">
+                      <div className="result-name">{lot.name}</div>
+                      <div className="result-meta">
+                        <span>
+                          空き {lot.available_spots}/{lot.total_spots}台
+                        </span>
+                        <span>¥{lot.price_per_hour}/時間</span>
+                      </div>
+                    </div>
+                    <span className={`result-status ${sc}`}>{sl}</span>
+                  </div>
+                </button>
+              );
+            })}
+            {filteredLots.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--text2)" }}>
+                該当する駐輪場が見つかりません
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== ボトムパネル（ログイン後） ===== */}
+      <div
+        className={`bottom-panel logged-panel ${panelOpen ? "collapsed" : ""}`}
+        id="main-bottom-panel"
+      >
+        <button
+          type="button"
+          className="panel-toggle-handle"
+          onClick={() => setPanelOpen(!panelOpen)}
+          aria-label="パネルを開閉する"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            display: "block",
+            width: "100%",
+          }}
+        />
+        <div className="bottom-left-panel">
+          <div className="bottom-panel-label">
+            <FaLocationDot style={{ display: "inline-block" }} /> 周辺の駐輪場
+          </div>
+          <div className="nearby-mini-list" id="nearby-mini-list">
+            {LOTS.map((lot) => {
+              const sClass = getStatusClass(lot.available_spots, lot.total_spots);
+              return (
+                <button
+                  type="button"
+                  key={lot.id}
+                  className="mini-item"
+                  style={{
+                    width: "100%",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                  onClick={() => {
+                    setSelectedLotId(lot.id);
+                    setPanelOpen(true);
+                    mapRef.current?.panTo([lot.latitude, lot.longitude]);
+                  }}
+                >
+                  <span className="mini-item-name">{lot.name}</span>
+                  <span className={`badge ${sClass}`}>{lot.available_spots}台</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bottom-right-panel">
+          {/* 目的地検索 */}
+          <button
+            type="button"
+            className="right-panel-btn destination-btn"
+            onClick={() => {
+              setShowSearch(true);
+              setPanelOpen(false);
+              setShowNotif(false);
+            }}
+          >
+            <div className="btn-icon-box dest">
+              <FaMagnifyingGlass />
+            </div>
+            <div className="btn-text-content">
+              <span className="btn-main-label">目的地</span>
+              <span className="btn-sub-label">を検索する</span>
+            </div>
+          </button>
+          {/* MYページ */}
+          <button
+            type="button"
+            className="right-panel-btn my-btn"
+            onClick={() => void navigate({ to: "/settings" })}
+          >
+            <div className="btn-icon-box my">
+              <FaUser />
+            </div>
+            <div className="btn-text-content">
+              <span className="btn-main-label">MYページ</span>
+              <span className="btn-sub-label">設定・通知</span>
+            </div>
+          </button>
+          {/* 利用履歴 */}
+          <button
+            type="button"
+            className="right-panel-btn history-btn"
+            onClick={() => void navigate({ to: "/reservations" })}
+          >
+            <div className="btn-icon-box history">
+              <FaClockRotateLeft />
+            </div>
+            <div className="btn-text-content">
+              <span className="btn-main-label">利用履歴</span>
+              <span className="btn-sub-label">予約の確認</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* ===== 現在地ボタン ===== */}
+      <div className="map-controls">
+        <button
+          type="button"
+          className="locate-fab"
+          onClick={handleLocateUser}
+          disabled={isLocating}
+        >
+          {isLocating ? "..." : <FaLocationCrosshairs />}
+        </button>
+      </div>
+
+      {/* ===== 駐輪場詳細パネル ===== */}
+      <div id="detail-panel" className={`lot-detail-panel ${panelOpen ? "" : "hidden"}`}>
+        <div className="panel-drag-handle" />
+        <button type="button" className="panel-close-btn" onClick={handleClosePanel}>
+          <FaXmark />
+        </button>
+        <div className="panel-header">
+          <h2 id="lot-title">{selectedLot?.name ?? "駐輪場名"}</h2>
+          <span id="lot-status-badge" className={`badge ${statusClass}`}>
+            {statusLabel}
+          </span>
+        </div>
+        <div className="panel-body">
+          <div className="stat-row">
+            <div className="stat">
+              <span className="label">空き台数</span>
+              <span className="val">
+                <strong className="highlight" id="lot-available">
                   {selectedLot?.available_spots ?? 0}
-                </Text>{" "}
-                / {selectedLot?.total_spots ?? 0}
-              </Text>
-            </Box>
-            <Box bg="#f1f5f9" borderRadius="xl" flex={1} p={4}>
-              <Text color="#64748b" fontSize="0.8rem" fontWeight={600}>
-                料金
-              </Text>
-              <Text color="#0f172a" fontSize="1rem" fontWeight={700}>
-                ¥<Text as="strong">{selectedLot?.price_per_hour ?? 0}</Text>/h
-              </Text>
-            </Box>
-          </Flex>
-          <Text color="#64748b" fontSize="0.9rem" mb={5}>
-            {mapMessage}
-          </Text>
+                </strong>{" "}
+                / <span id="lot-total">{selectedLot?.total_spots ?? 0}</span>
+              </span>
+            </div>
+            <div className="stat">
+              <span className="label">料金</span>
+              <span className="val">
+                ¥<strong id="lot-price">{selectedLot?.price_per_hour ?? 0}</strong>/h
+              </span>
+            </div>
+          </div>
+        </div>
+        {reserveSuccess && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              color: "#10b981",
+              fontWeight: 700,
+              fontSize: "0.9rem",
+              marginBottom: "12px",
+            }}
+          >
+            <FaCircleCheck /> 予約完了済み
+          </div>
+        )}
+        <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "12px" }}>
+          {mapMessage}
+        </div>
+        <div className="panel-actions">
+          <button
+            type="button"
+            id="nav-btn"
+            className="secondary-btn"
+            onClick={handleRoute}
+            disabled={isRouting}
+          >
+            <FaLocationArrow /> ルート
+          </button>
+          <button
+            type="button"
+            id="reserve-trigger-btn"
+            className="primary-btn"
+            onClick={() => setShowReserveModal(true)}
+            disabled={statusClass === "full" || reserveSuccess}
+          >
+            <FaCalendarCheck /> {reserveSuccess ? "予約済み" : "予約する"}
+          </button>
+        </div>
+      </div>
 
-          <Flex gap={3}>
-            <Button
-              colorScheme="gray"
-              flex={1}
-              disabled={isRouting}
-              onClick={handleRoute}
-              variant="outline"
+      {/* ===== 予約モーダル ===== */}
+      {showReserveModal && selectedLot && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{ zIndex: 2000 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowReserveModal(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setShowReserveModal(false);
+          }}
+        >
+          <div className="modal-content">
+            <div className="modal-drag-handle" />
+            <div className="modal-header">
+              <h2>{selectedLot.name}</h2>
+              <button
+                type="button"
+                className="close-modal-btn"
+                onClick={() => setShowReserveModal(false)}
+              >
+                <FaXmark />
+              </button>
+            </div>
+            <div className="form-group">
+              <label htmlFor="reserve-hours">利用時間</label>
+              <select
+                id="reserve-hours"
+                className="form-group select"
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "1.5px solid var(--border)",
+                  borderRadius: "12px",
+                  fontSize: "1rem",
+                  background: "var(--surface)",
+                }}
+                value={reserveHours}
+                onChange={(e) => setReserveHours(Number(e.target.value))}
+              >
+                {[1, 2, 3, 6, 12, 24].map((h) => (
+                  <option key={h} value={h}>
+                    {h}時間
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="price-preview">
+              <FaCalendarCheck style={{ color: "var(--primary)" }} />
+              <span>
+                料金目安: ¥{selectedLot.price_per_hour * reserveHours}（{reserveHours}時間）
+              </span>
+            </div>
+            <button type="button" className="primary-btn" onClick={handleReserve}>
+              <FaCalendarCheck /> 予約を確定する
+            </button>
+            <button
+              type="button"
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: "none",
+                border: "none",
+                color: "var(--text2)",
+                fontWeight: 600,
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                marginTop: "8px",
+              }}
+              onClick={() => setShowReserveModal(false)}
             >
-              <Flex align="center" gap={2}>
-                <FaLocationArrow />
-                ルート
-              </Flex>
-            </Button>
-            <Button colorScheme="purple" disabled flex={1}>
-              予約する
-            </Button>
-          </Flex>
-        </Box>
-      </Box>
-    </Layout>
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
