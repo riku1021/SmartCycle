@@ -37,6 +37,7 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.14.4",
+    "types-requests>=2.32.0",
 ]
 
 security = [
@@ -107,6 +108,11 @@ strict_optional = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+# ev3_dc は PyPI に型スタブが存在しないため抑制
+[[tool.mypy.overrides]]
+module = ["ev3_dc", "ev3_dc.*"]
+ignore_missing_imports = true
 
 # =============================================================================
 # bandit 設定（セキュリティスキャン）

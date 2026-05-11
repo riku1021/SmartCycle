@@ -46,9 +46,10 @@ ENV UV_LINK_MODE=copy
 
 COPY server/pyproject.toml server/uv.lock ./
 
+# 開発用ランタイムに必要な依存のみ（security グループの pip-audit 等はビルド失敗の原因になり得るため含めない）
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --all-groups && \
-    test -f .venv/bin/uvicorn
+    uv sync --frozen --no-install-project --group dev && \
+    .venv/bin/python -c "import uvicorn"
 
 # =============================================================================
 # ステージ2: 本番ランタイム
