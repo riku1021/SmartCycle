@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api", tags=["iot"])
@@ -41,8 +41,10 @@ async def get_parking_status(parking_lot_id: int) -> ParkingStatusResponse:
     # TODO: DBから最新状態を取得する実装に置き換える
     latest = _latest_status_by_lot_id.get(parking_lot_id)
     if latest is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Parking status not found",
+        # IoT からの初回 POST 前でもフロントがポーリングできるよう、既定値を返す
+        return ParkingStatusResponse(
+            parking_lot_id=parking_lot_id,
+            available_count=3,
+            updated_at=datetime.now(UTC).isoformat(),
         )
     return latest
