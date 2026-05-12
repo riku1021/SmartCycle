@@ -1988,8 +1988,16 @@ th {
     margin-bottom: 24px;
   }
 
-  header h1 {
+  .admin-screen header h1 {
     font-size: 1.5rem;
+  }
+
+  .user-info {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: rgba(79, 70, 229, 0.05);
+    padding: 4px 12px;
+    border-radius: 99px;
   }
 
   .kpi-cards {
