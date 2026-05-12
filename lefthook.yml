@@ -17,27 +17,27 @@ pre-commit:
     - name: client-sort-package-json
       root: client/
       glob: "client/package.json"
-      run: pnpm run sort-package-json:fix
+      run: mise x -- pnpm run sort-package-json:fix
       stage_fixed: true
       description: "Sort client/package.json keys (sort-package-json)"
 
     - name: client-format-lint
       root: client/
       glob: "client/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss,yml,yaml}"
-      run: pnpm fix
+      run: mise x -- pnpm fix
       stage_fixed: true
       description: "Format and lint client (Biome)"
 
     - name: client-typecheck
       root: client/
       glob: "client/**/*.{ts,tsx,js,jsx,mjs,cjs}"
-      run: pnpm exec tsc -b --noEmit
+      run: mise x -- pnpm exec tsc -b --noEmit
       description: "Typecheck client (tsc project references)"
 
     - name: client-build
       root: client/
       glob: "client/**"
-      run: pnpm run build
+      run: mise x -- pnpm run build
       description: "Production build client (tsc -b && vite build)"
 
     # ========================================================
@@ -46,21 +46,21 @@ pre-commit:
     - name: server-format
       root: server/
       glob: "server/**/*.{py,ipynb}"
-      run: uv run ruff format {staged_files}
+      run: mise x -- uv run ruff format {staged_files}
       stage_fixed: true
       description: "Format server Python (Ruff)"
 
     - name: server-lint
       root: server/
       glob: "server/**/*.{py,ipynb}"
-      run: uv run ruff check --fix {staged_files}
+      run: mise x -- uv run ruff check --fix {staged_files}
       stage_fixed: true
       description: "Lint server Python (Ruff)"
 
     - name: server-typecheck
       root: server/
       glob: "server/**/*.{py,ipynb}"
-      run: uv run mypy {staged_files}
+      run: mise x -- uv run mypy {staged_files}
       description: "Typecheck server (mypy)"
 
 # pre-push:
