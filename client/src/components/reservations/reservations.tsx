@@ -41,8 +41,8 @@ const activeReservations: Reservation[] = [
 const historyReservations: Reservation[] = [
   {
     id: "RSV-20260421-003",
-    lotName: "なんばパークス西",
-    location: "大阪市浪速区難波中 2丁目付近",
+    lotName: "中之島ゲート",
+    location: "大阪市北区中之島 2丁目付近",
     dateLabel: "2026/04/21",
     timeLabel: "12:00 - 13:00",
     priceLabel: "キャンセル料なし",
@@ -59,8 +59,8 @@ const historyReservations: Reservation[] = [
   },
   {
     id: "RSV-20260418-014",
-    lotName: "北浜サイクルポート",
-    location: "北浜駅 26番出口付近",
+    lotName: "梅田ステーション東",
+    location: "大阪駅東口から徒歩4分",
     dateLabel: "2026/04/18",
     timeLabel: "13:20 - 14:20",
     priceLabel: "支払い済み ¥120",
