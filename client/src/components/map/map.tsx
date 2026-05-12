@@ -95,9 +95,21 @@ const MapComponent: FC = () => {
   const [currentLatLng, setCurrentLatLng] = useState<[number, number]>(MAP_CENTER);
   const [selectedLotId, setSelectedLotId] = useState<number | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
   const [isRouting, setIsRouting] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [mapMessage, setMapMessage] = useState("駐輪場を選択してください");
+
+  const watchIdRef = useRef<number | null>(null);
+
+  // ---- リアルタイム追跡の停止 ----
+  const stopTracking = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsTracking(false);
+  }, []);
 
   // UI 状態
   const [showSearch, setShowSearch] = useState(false);
@@ -179,12 +191,19 @@ const MapComponent: FC = () => {
     };
   }, [getStatusClass]);
 
-  // ---- 現在地取得 ----
+  // ---- 現在地取得・追跡トグル ----
   const handleLocateUser = () => {
     if (!navigator.geolocation) {
       setMapMessage("このブラウザは位置情報に対応していません");
       return;
     }
+
+    if (isTracking) {
+      stopTracking();
+      setMapMessage("追跡を停止しました");
+      return;
+    }
+
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -192,19 +211,34 @@ const MapComponent: FC = () => {
         setCurrentLatLng(ll);
         userMarkerRef.current?.setLatLng(ll);
         mapRef.current?.flyTo(ll, 16);
-        setMapMessage("現在地を取得しました");
+        setMapMessage("位置を特定しました。追跡を開始します。");
         setIsLocating(false);
+        setIsTracking(true);
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (p) => {
+            const newLL: [number, number] = [p.coords.latitude, p.coords.longitude];
+            setCurrentLatLng(newLL);
+            userMarkerRef.current?.setLatLng(newLL);
+          },
+          () => {
+            setMapMessage("追跡中にエラーが発生しました");
+            stopTracking();
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
       },
       () => {
-        setCurrentLatLng(MAP_CENTER);
-        userMarkerRef.current?.setLatLng(MAP_CENTER);
-        mapRef.current?.flyTo(MAP_CENTER, 15);
-        setMapMessage("現在地が取得できないため大阪駅を表示しています");
+        setMapMessage("位置情報を取得できませんでした");
         setIsLocating(false);
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   };
+
+  useEffect(() => {
+    return () => stopTracking();
+  }, [stopTracking]);
 
   // ---- ルート検索 ----
   const handleRoute = async () => {
@@ -300,9 +334,21 @@ const MapComponent: FC = () => {
           <span>SmartCycle</span>
         </div>
         <div className="app-top-actions">
+          {/* 現在地ボタン */}
           <button
             type="button"
-            className="notif-bell-btn"
+            className={`top-action-btn locate-btn ${isTracking ? "active-tracking" : ""}`}
+            onClick={handleLocateUser}
+            disabled={isLocating}
+            title={isTracking ? "追跡を停止" : "現在地を追跡"}
+          >
+            {isLocating ? <div className="spinner-mini" /> : <FaLocationCrosshairs />}
+          </button>
+
+          {/* 通知ボタン */}
+          <button
+            type="button"
+            className="top-action-btn notif-bell-btn"
             id="notif-btn"
             onClick={() => {
               setShowNotif(!showNotif);
@@ -628,18 +674,6 @@ const MapComponent: FC = () => {
             </div>
           </button>
         </div>
-      </div>
-
-      {/* ===== 現在地ボタン ===== */}
-      <div className="map-controls">
-        <button
-          type="button"
-          className="locate-fab"
-          onClick={handleLocateUser}
-          disabled={isLocating}
-        >
-          {isLocating ? "..." : <FaLocationCrosshairs />}
-        </button>
       </div>
 
       {/* ===== 駐輪場詳細パネル ===== */}

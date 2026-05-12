@@ -126,18 +126,56 @@ html {
   gap: 6px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
-.notif-bell-btn {
+.top-action-btn {
   position: relative;
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: none;
-  width: 40px;
-  height: 40px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   color: var(--text);
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.top-action-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 1);
+}
+.top-action-btn.locate-btn {
+  color: var(--primary);
+}
+.top-action-btn.locate-btn.active-tracking {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow:
+    0 0 0 4px rgba(79, 70, 229, 0.2),
+    0 4px 15px rgba(79, 70, 229, 0.4);
+  animation: pulse-tracking 2s infinite;
+}
+@keyframes pulse-tracking {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(79, 70, 229, 0.4),
+      0 4px 15px rgba(79, 70, 229, 0.4);
+  }
+  70% {
+    box-shadow:
+      0 0 0 10px rgba(79, 70, 229, 0),
+      0 4px 15px rgba(79, 70, 229, 0.4);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(79, 70, 229, 0),
+      0 4px 15px rgba(79, 70, 229, 0.4);
+  }
 }
 .notif-badge {
   position: absolute;
@@ -153,24 +191,12 @@ html {
   justify-content: center;
   align-items: center;
   font-weight: 800;
+  border: 2px solid #fff;
 }
 
-/* ===== Locate FAB ===== */
-.locate-fab,
+/* ===== Locate FAB (Cleaned up) ===== */
 .locate-btn {
-  position: absolute;
-  right: 16px;
-  z-index: 800;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: none;
-  background: var(--surface);
-  color: var(--primary);
-  font-size: 1.2rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  bottom: 280px;
+  display: none; /* 使用されていないため非表示 */
 }
 
 /* ===== Bottom Panel (shared) ===== */
@@ -204,27 +230,7 @@ html {
   transform: scaleX(1.1);
 }
 
-/* 地図上のコントロール（現在地ボタンなど） */
-.map-controls {
-  position: fixed;
-  right: 16px;
-  bottom: 30px; /* デフォルト（畳まれている時） */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-  z-index: 1200;
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-/* ログイン後のパネルが開いている時: パネルの高さ(200px)分だけ上に避ける */
-.logged-panel:not(.collapsed) ~ .map-controls {
-  transform: translateY(-210px);
-}
-/* ゲストパネル表示時 */
-.guest-panel ~ .map-controls {
-  transform: translateY(-200px);
-}
+/* 以前の下部操作用スタイルは削除されました */
 
 .stop-nav-btn {
   background: #ef4444;
@@ -245,15 +251,17 @@ html {
   height: 52px;
   background: white;
   border: none;
-  border-radius: 50%; /* 丸いボタンにしてより標準的なUIに */
-  color: var(--primary-color);
+  border-radius: 50%;
+  color: var(--primary);
   font-size: 1.4rem;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
 }
 .locate-fab:active {
   transform: scale(0.9);
@@ -1593,10 +1601,35 @@ html {
 .dark-theme .bottom-left-panel {
   background: #1a2538;
 }
-.dark-theme .filter-tab {
-  background: var(--surface);
-  border-color: var(--border);
-  color: var(--text);
+.dark-theme .top-action-btn {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.dark-theme .top-action-btn.locate-btn {
+  color: #818cf8;
+}
+.dark-theme .notif-badge {
+  border-color: var(--surface);
+}
+
+/* Mini Spinner */
+.spinner-mini {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(79, 70, 229, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin-mini 0.8s linear infinite;
+}
+@keyframes spin-mini {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dark-theme .spinner-mini {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: #818cf8;
 }
 .dark-theme .filter-tab.active {
   background: var(--primary);
