@@ -132,8 +132,9 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
   return (
     <svg
       viewBox="0 0 160 160"
-      width="160"
-      height="160"
+      width="100%"
+      height="100%"
+      style={{ maxWidth: "160px", maxHeight: "160px" }}
       role="img"
       aria-labelledby="donut-chart-title"
     >
@@ -248,9 +249,7 @@ const DashboardComponent: FC = () => {
 
             <div className="table-section card">
               <h3>ステータス分布</h3>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "24px", marginTop: "16px" }}
-              >
+              <div className="donut-chart-flex">
                 <DonutChartSvg data={summary.status_distribution} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {summary.status_distribution.map((item) => (
