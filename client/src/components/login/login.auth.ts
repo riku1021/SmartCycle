@@ -1,6 +1,6 @@
 import axios from "axios";
-import { login, signup } from "@/api/auth";
-import { resolveRoleByCredential, setUserRole, type UserRole } from "@/lib/adminRole";
+import { login, signup, type TokenResponse } from "@/api/auth";
+import { setUserRole, type UserRole } from "@/lib/adminRole";
 import { setAccessToken } from "@/lib/apiClient";
 
 export type AuthSubmitMode = "login" | "signup";
@@ -15,20 +15,28 @@ export async function submitAuth(params: {
   password: string;
   name?: string;
 }): Promise<UserRole> {
+  let data: TokenResponse;
   if (params.mode === "login") {
-    const data = await login({ email: params.email, password: params.password });
-    setAccessToken(data.access_token);
-    const role = resolveRoleByCredential(params.email, params.password);
-    setUserRole(role);
-    return role;
+    data = await login({ email: params.email, password: params.password });
+  } else {
+    data = await signup({
+      email: params.email,
+      password: params.password,
+      name: params.name,
+    });
   }
-  const data = await signup({
-    email: params.email,
-    password: params.password,
-    name: params.name,
-  });
+
   setAccessToken(data.access_token);
-  const role = resolveRoleByCredential(params.email, params.password);
+
+  // Resolve role based on the returned user email from the DB
+  const userEmail = data.user.email;
+  let role: UserRole = "user";
+  if (userEmail === "admin@mail.com") {
+    role = "admin";
+  } else if (userEmail === "dev@mail.com") {
+    role = "dev";
+  }
+
   setUserRole(role);
   return role;
 }

@@ -5,6 +5,9 @@ import { getAccessToken } from "@/lib/apiClient";
 
 export const Route = createFileRoute("/map/")({
   beforeLoad: () => {
+    if (!getAccessToken()) {
+      throw redirect({ to: "/login" });
+    }
     if (getAccessToken() && isAdminUser()) {
       throw redirect({ to: "/dashboard" });
     }
