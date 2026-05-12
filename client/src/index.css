@@ -1805,12 +1805,31 @@ body {
   background-color: var(--panel-bg);
   border-right: 1px solid var(--border-color);
   padding: 24px;
+  display: flex;
+  flex-direction: column;
 }
 
-.sidebar h2 {
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.sidebar-header h2 {
   font-size: 1.5rem;
   color: var(--primary-color);
-  margin-bottom: 32px;
+  margin-bottom: 0;
+}
+
+.mobile-logout-btn {
+  display: none;
+}
+
+#admin-nav {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .sidebar nav .nav-item,
@@ -1949,14 +1968,37 @@ th {
     z-index: 100;
   }
 
-  .sidebar h2 {
-    font-size: 1.2rem;
-    margin-bottom: 16px;
-    text-align: center;
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
   }
 
-  .sidebar nav {
+  .sidebar h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0;
+    text-align: left;
+  }
+
+  .mobile-logout-btn {
     display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
+  .sidebar nav,
+  #admin-nav {
+    display: flex;
+    flex-direction: row;
     overflow-x: auto;
     gap: 8px;
     padding-bottom: 8px;
