@@ -49,6 +49,8 @@ services:
       - BACKEND_CMD=${BACKEND_CMD:-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload}
       - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://smartcycle:smartcycle@postgres:5432/smartcycle}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars-ok}
+      # 開発・検証用テストアカウント (admin / dev / user) の自動投入。本番では必ず false にする
+      - SEED_DEV_USERS=${SEED_DEV_USERS:-true}
     command: sh -c "uv run alembic -c /app/alembic.ini upgrade head && $$BACKEND_CMD"
     depends_on:
       postgres:

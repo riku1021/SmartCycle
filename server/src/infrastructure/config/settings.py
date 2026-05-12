@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=60 * 24, alias="JWT_EXPIRE_MINUTES")
 
+    # 開発・検証用のテストアカウント (admin / dev / user) を起動時に冪等投入するか
+    # 本番環境では必ず False のままにすること
+    seed_dev_users: bool = Field(default=False, alias="SEED_DEV_USERS")
+
     model_config = SettingsConfigDict(
         env_file=None,  # load_settings()で動的に設定
         env_file_encoding="utf-8",
@@ -185,6 +189,7 @@ def load_settings() -> Settings:
             "DATABASE_URL",
             "JWT_SECRET",
         )
+        # SEED_DEV_USERS は任意設定 (デフォルト False) のため required には含めない
         missing_keys = [key for key in required_env_keys if key not in os.environ]
         if missing_keys:
             joined = ", ".join(missing_keys)

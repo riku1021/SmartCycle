@@ -2,6 +2,8 @@
 
 フロントエンドの詳細は [client/README.md](client/README.md)、バックエンドは [server/README.md](server/README.md) を参照してください。
 
+ローカル開発・動作確認で使うテストアカウント（管理者 / 開発者 / エンドユーザー）は [docs/ACOUNTS.md](docs/ACOUNTS.md) にまとめています。
+
 ## セットアップ
 
 [mise](https://mise.jdx.dev/) が未導入なら、[公式のインストール手順](https://mise.jdx.dev/installing-mise.html)（[Getting Started](https://mise.jdx.dev/getting-started.html) など）から自分の環境に合う方法を選んで入れてください。
