@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
 import { useState } from "react";
+import { FaArrowRightFromBracket } from "react-icons/fa6";
 import { fetchDashboardSummary } from "@/api/parking-status";
+import { clearAccessToken } from "@/lib/apiClient";
+import { showConfirmationAlert } from "@/shared/alerts/alerts";
 
 /* ── SVG 棒グラフ ── */
 const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }[] }> = ({
@@ -132,8 +135,9 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
   return (
     <svg
       viewBox="0 0 160 160"
-      width="160"
-      height="160"
+      width="100%"
+      height="100%"
+      style={{ maxWidth: "160px", maxHeight: "160px" }}
       role="img"
       aria-labelledby="donut-chart-title"
     >
@@ -161,6 +165,20 @@ const DashboardComponent: FC = () => {
     refetchInterval: 5000,
   });
 
+  const handleLogout = async () => {
+    const result = await showConfirmationAlert(
+      "ログアウト確認",
+      "ログアウトしますか？",
+      "ログアウト",
+      "キャンセル"
+    );
+    if (!result.isConfirmed) {
+      return;
+    }
+    clearAccessToken();
+    await navigate({ to: "/login" });
+  };
+
   const summary = data || {
     total_occupancy_rate: 0,
     used_count: 0,
@@ -176,7 +194,17 @@ const DashboardComponent: FC = () => {
   return (
     <div className="dashboard">
       <aside className="sidebar">
-        <h2>SmartCycle Admin</h2>
+        <div className="sidebar-header">
+          <h2>SmartCycle Admin</h2>
+          <button
+            type="button"
+            className="mobile-logout-btn"
+            onClick={handleLogout}
+            aria-label="ログアウト"
+          >
+            <FaArrowRightFromBracket />
+          </button>
+        </div>
         <nav id="admin-nav">
           <button
             type="button"
@@ -201,6 +229,14 @@ const DashboardComponent: FC = () => {
           </button>
           <button type="button" className="nav-item" onClick={() => void navigate({ to: "/map" })}>
             ユーザーマップ
+          </button>
+          <button
+            type="button"
+            className="nav-item"
+            onClick={handleLogout}
+            style={{ marginTop: "auto", color: "#ef4444" }}
+          >
+            ログアウト
           </button>
         </nav>
       </aside>
@@ -248,9 +284,7 @@ const DashboardComponent: FC = () => {
 
             <div className="table-section card">
               <h3>ステータス分布</h3>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "24px", marginTop: "16px" }}
-              >
+              <div className="donut-chart-flex">
                 <DonutChartSvg data={summary.status_distribution} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {summary.status_distribution.map((item) => (
