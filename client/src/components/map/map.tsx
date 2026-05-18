@@ -15,10 +15,13 @@ import {
   FaLocationCrosshairs,
   FaLocationDot,
   FaMagnifyingGlass,
+  FaMap,
   FaUser,
   FaXmark,
 } from "react-icons/fa6";
+
 import { isAdminOrDevUser } from "@/lib/adminRole";
+import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
 
 type ParkingLot = {
@@ -57,8 +60,8 @@ const LOTS: ParkingLot[] = [
     name: "梅田ステーション東",
     latitude: 34.70631,
     longitude: 135.49887,
-    available_spots: 18,
-    total_spots: 40,
+    available_spots: 3,
+    total_spots: 3,
     price_per_hour: 100,
   },
 ];
@@ -120,6 +123,7 @@ const MapComponent: FC = () => {
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [showReserveModal, setShowReserveModal] = useState(false);
+  const [showFloorPlan, setShowFloorPlan] = useState(false);
   const [reserveHours, setReserveHours] = useState(1);
   const [reserveSuccess, setReserveSuccess] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -744,16 +748,24 @@ const MapComponent: FC = () => {
         <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "12px" }}>
           {mapMessage}
         </div>
-        <div className="panel-actions">
-          <button
-            type="button"
-            id="nav-btn"
-            className="secondary-btn"
-            onClick={handleRoute}
-            disabled={isRouting}
-          >
-            <FaLocationArrow /> ルート
-          </button>
+        <div
+          className="panel-actions"
+          style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+        >
+          <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+            <button
+              type="button"
+              id="nav-btn"
+              className="secondary-btn"
+              onClick={handleRoute}
+              disabled={isRouting}
+            >
+              <FaLocationArrow /> ルート
+            </button>
+            <button type="button" className="secondary-btn" onClick={() => setShowFloorPlan(true)}>
+              <FaMap /> 見取り図参照
+            </button>
+          </div>
           <button
             type="button"
             id="reserve-trigger-btn"
@@ -765,6 +777,14 @@ const MapComponent: FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ===== 見取り図モーダル ===== */}
+      {showFloorPlan && (
+        <FloorPlanModal
+          onClose={() => setShowFloorPlan(false)}
+          availableSpots={selectedLot?.available_spots ?? 0}
+        />
+      )}
 
       {/* ===== 予約モーダル ===== */}
       {showReserveModal && selectedLot && (
