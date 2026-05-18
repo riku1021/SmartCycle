@@ -4,6 +4,7 @@ import L, { type GeoJSON, type Map as LeafletMap } from "leaflet";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  FaBars,
   FaBell,
   FaBicycle,
   FaCalendarCheck,
@@ -18,7 +19,10 @@ import {
   FaUser,
   FaXmark,
 } from "react-icons/fa6";
+
+import { isAdminOrDevUser } from "@/lib/adminRole";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
+import MapSideDrawer from "./MapSideDrawer";
 
 type ParkingLot = {
   id: number;
@@ -122,6 +126,9 @@ const MapComponent: FC = () => {
   const [showFloorPlan, setShowFloorPlan] = useState(false);
   const [reserveHours, setReserveHours] = useState(1);
   const [reserveSuccess, setReserveSuccess] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const showAdminMenu = isAdminOrDevUser();
 
   const unreadCount = notifications.filter((n) => n.unread).length;
   const selectedLot = selectedLotId ? LOTS.find((l) => l.id === selectedLotId) : null;
@@ -332,9 +339,22 @@ const MapComponent: FC = () => {
 
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
-        <div className="app-logo-small">
-          <FaBicycle style={{ fontSize: "1.4rem" }} />
-          <span>SmartCycle</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {showAdminMenu && (
+            <button
+              type="button"
+              className="top-action-btn"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="メニューを開く"
+              style={{ width: "42px", height: "42px" }}
+            >
+              <FaBars />
+            </button>
+          )}
+          <div className="app-logo-small">
+            <FaBicycle style={{ fontSize: "1.4rem" }} />
+            <span>SmartCycle</span>
+          </div>
         </div>
         <div className="app-top-actions">
           {/* 現在地ボタン */}
@@ -844,6 +864,8 @@ const MapComponent: FC = () => {
           </div>
         </div>
       )}
+      {/* ===== サイドドロワー (Admin/Dev) ===== */}
+      <MapSideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </div>
   );
 };

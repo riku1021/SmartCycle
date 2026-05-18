@@ -2,10 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
 import { useState } from "react";
+import { FaArrowRightFromBracket } from "react-icons/fa6";
 import { fetchDashboardSummary } from "@/api/parking-status";
+import { clearAccessToken } from "@/lib/apiClient";
+import { showConfirmationAlert } from "@/shared/alerts/alerts";
 
 /* ── SVG 棒グラフ ── */
-const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }[] }> = ({
+const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number }[] }> = ({
   data,
 }) => {
   const maxValue = Math.max(...data.map((d) => d.value), 200);
@@ -70,7 +73,7 @@ const BarChartSvg: FC<{ data: { name: string; shortName: string; value: number }
               fill="#64748b"
               transform={`rotate(-40, ${labelX}, ${labelY})`}
             >
-              {d.shortName}
+              {d.short_name}
             </text>
           </g>
         );
@@ -132,8 +135,9 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
   return (
     <svg
       viewBox="0 0 160 160"
-      width="160"
-      height="160"
+      width="100%"
+      height="100%"
+      style={{ maxWidth: "160px", maxHeight: "160px" }}
       role="img"
       aria-labelledby="donut-chart-title"
     >
@@ -161,6 +165,20 @@ const DashboardComponent: FC = () => {
     refetchInterval: 5000,
   });
 
+  const handleLogout = async () => {
+    const result = await showConfirmationAlert(
+      "ログアウト確認",
+      "ログアウトしますか？",
+      "ログアウト",
+      "キャンセル"
+    );
+    if (!result.isConfirmed) {
+      return;
+    }
+    clearAccessToken();
+    await navigate({ to: "/login" });
+  };
+
   const summary = data || {
     total_occupancy_rate: 0,
     used_count: 0,
@@ -173,10 +191,30 @@ const DashboardComponent: FC = () => {
     status_distribution: [],
   };
 
+  // 予測収益の簡単な試算 (利用台数 * 平均単価 * 24時間 * 30日)
+  // より正確な計算は別APIになるかもしれないが、今回はモックの代わりに試算式を用いる
+  const avgPrice =
+    summary.occupancy_by_lot.length > 0
+      ? summary.occupancy_by_lot.reduce((acc, lot) => acc + lot.price_per_hour, 0) /
+        summary.occupancy_by_lot.length
+      : 100;
+  const estimatedRevenue = summary.used_count * avgPrice * 24 * 30;
+  const formattedRevenue = new Intl.NumberFormat("ja-JP").format(estimatedRevenue);
+
   return (
     <div className="dashboard">
       <aside className="sidebar">
-        <h2>SmartCycle Admin</h2>
+        <div className="sidebar-header">
+          <h2>SmartCycle Admin</h2>
+          <button
+            type="button"
+            className="mobile-logout-btn"
+            onClick={handleLogout}
+            aria-label="ログアウト"
+          >
+            <FaArrowRightFromBracket />
+          </button>
+        </div>
         <nav id="admin-nav">
           <button
             type="button"
@@ -201,6 +239,14 @@ const DashboardComponent: FC = () => {
           </button>
           <button type="button" className="nav-item" onClick={() => void navigate({ to: "/map" })}>
             ユーザーマップ
+          </button>
+          <button
+            type="button"
+            className="nav-item"
+            onClick={handleLogout}
+            style={{ marginTop: "auto", color: "#ef4444" }}
+          >
+            ログアウト
           </button>
         </nav>
       </aside>
@@ -248,9 +294,7 @@ const DashboardComponent: FC = () => {
 
             <div className="table-section card">
               <h3>ステータス分布</h3>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "24px", marginTop: "16px" }}
-              >
+              <div className="donut-chart-flex">
                 <DonutChartSvg data={summary.status_distribution} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {summary.status_distribution.map((item) => (
@@ -298,26 +342,27 @@ const DashboardComponent: FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>梅田ステーション東</td>
-                    <td>34.70631, 135.49887</td>
-                    <td>50</td>
-                    <td>
-                      <button type="button" className="secondary-btn">
-                        編集
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>中之島ゲート</td>
-                    <td>34.69392, 135.50160</td>
-                    <td>30</td>
-                    <td>
-                      <button type="button" className="secondary-btn">
-                        編集
-                      </button>
-                    </td>
-                  </tr>
+                  {summary.occupancy_by_lot.map((lot) => (
+                    <tr key={lot.id}>
+                      <td>{lot.name}</td>
+                      <td>
+                        {lot.latitude.toFixed(5)}, {lot.longitude.toFixed(5)}
+                      </td>
+                      <td>{lot.total_spots}</td>
+                      <td>
+                        <button type="button" className="secondary-btn">
+                          編集
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {summary.occupancy_by_lot.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: "center", color: "#94a3b8" }}>
+                        データがありません
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -346,7 +391,7 @@ const DashboardComponent: FC = () => {
               </div>
               <div className="card">
                 <h3>収益予測 (月間)</h3>
-                <div className="value">¥245,000</div>
+                <div className="value">¥{formattedRevenue}</div>
                 <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", marginTop: "8px" }}>
                   ※現在の稼働率に基づいた試算
                 </p>

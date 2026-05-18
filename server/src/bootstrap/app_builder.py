@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import load_settings
-from src.infrastructure.db.seed import seed_dev_users
+from src.infrastructure.db.seed import seed_dev_users, seed_parking_domain
 from src.infrastructure.db.session import close_db, get_session_maker, init_db
 from src.infrastructure.http import setup_exception_handlers
 from src.infrastructure.logger.logger import logger
@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.info("SEED_DEV_USERS=true のためテスト用アカウントの投入を試行します")
         try:
             await seed_dev_users(get_session_maker())
+            await seed_parking_domain(get_session_maker())
         except Exception:
             logger.exception("テスト用アカウントの投入に失敗しました")
 
