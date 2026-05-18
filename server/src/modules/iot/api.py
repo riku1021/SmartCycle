@@ -1,9 +1,17 @@
 """IoT機器から駐輪場ステータスを受け取るAPI。"""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.infrastructure.db.models.device import Device
+from src.infrastructure.db.models.parking_lot import ParkingLot
+from src.infrastructure.db.models.parking_status import ParkingStatus
+from src.infrastructure.db.models.reservation import Reservation
+from src.infrastructure.db.session import get_db
 
 router = APIRouter(prefix="/api", tags=["iot"])
 
@@ -55,52 +63,66 @@ class DashboardSummaryResponse(BaseModel):
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
-async def get_dashboard_summary() -> DashboardSummaryResponse:
+async def get_dashboard_summary(
+    session: AsyncSession = Depends(get_db),
+) -> DashboardSummaryResponse:
     """ダッシュボード用のサマリーデータを取得"""
-    # 実際はDBから取得するが、現状はメモリ内のデータを使用
 
-    # 駐輪場ごとのデフォルト値（モックデータ）
-    default_values = {
-        1: 180,  # グランフロント大阪
-        2: 150,  # ヨドバシ梅田
-        3: 45,  # 大阪ステーションシティ
-        4: 37,  # 梅田スカイビル
-    }
-    capacities = {
-        1: 200,
-        2: 150,
-        3: 100,
-        4: 80,
-    }
+    # 全駐輪場を取得
+    lots_result = await session.execute(select(ParkingLot))
+    lots = lots_result.scalars().all()
+
+    # ステータスを取得
+    statuses_result = await session.execute(select(ParkingStatus))
+    statuses = {s.parking_lot_id: s for s in statuses_result.scalars().all()}
+
+    # 予約を取得
+    reservations_count = (
+        await session.execute(
+            select(func.count(Reservation.id)).where(Reservation.status.in_(["reserved", "active"]))
+        )
+    ).scalar_one()
+
+    # 異常デバイスを取得（1時間以上音沙汰なし）
+    threshold_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
+    abnormal_devices_count = (
+        await session.execute(
+            select(func.count(Device.id)).where(Device.last_seen_at < threshold_time)
+        )
+    ).scalar_one()
 
     occupancy_by_lot = []
-    lot_names = {
-        1: ("グランフロント大阪 南館 駐輪場", "グランフロント大阪"),
-        2: ("ヨドバシ梅田タワー 駐輪場", "ヨドバシ梅田"),
-        3: ("大阪ステーションシティ 駐輪場", "大阪ステーション"),
-        4: ("梅田スカイビル 駐輪場", "梅田スカイビル"),
-    }
-
     used_count = 0
     full_lots_count = 0
-    total_capacity = sum(capacities.values())
-    total_lots_count = len(lot_names)
+    total_capacity = sum(lot.total_spots for lot in lots)
+    total_lots_count = len(lots)
 
-    for lot_id, (name, short_name) in lot_names.items():
-        # メモリにデータがあればそれを使い、なければデフォルト値を使用
-        current_val = _latest_status_by_lot_id.get(
-            lot_id,
-            ParkingStatusResponse(
-                parking_lot_id=lot_id, available_count=default_values[lot_id], updated_at=""
-            ),
-        ).available_count
+    for lot in lots:
+        status = statuses.get(lot.id)
+        # 空き台数（ステータスが無い場合は全空きとみなす）
+        available_spots = status.available_spots if status else lot.total_spots
+        is_full = status.is_full if status else False
 
-        occupancy_by_lot.append({"name": name, "shortName": short_name, "value": current_val})
-        used_count += current_val
-
-        # 満車判定（ここでは 稼働率 95% 以上を満車とする）
-        if current_val >= capacities[lot_id] * 0.95:
+        # 使用数
+        current_used = lot.total_spots - available_spots
+        used_count += current_used
+        if is_full:
             full_lots_count += 1
+
+        short_name = lot.name.replace(" 駐輪場", "").replace(" 南館", "").replace("シティ", "")
+
+        occupancy_by_lot.append(
+            {
+                "id": str(lot.id),
+                "name": lot.name,
+                "short_name": short_name,
+                "value": current_used,  # フロントではvalueを「利用数」または「稼働率」で描画
+                "latitude": lot.latitude,
+                "longitude": lot.longitude,
+                "total_spots": lot.total_spots,
+                "price_per_hour": lot.price_per_hour,
+            }
+        )
 
     return DashboardSummaryResponse(
         total_occupancy_rate=round((used_count / total_capacity) * 100, 1)
@@ -110,8 +132,8 @@ async def get_dashboard_summary() -> DashboardSummaryResponse:
         total_capacity=total_capacity,
         full_lots_count=full_lots_count,
         total_lots_count=total_lots_count,
-        active_reservations_count=24,  # モック値
-        abnormal_devices_count=1,  # モック値
+        active_reservations_count=reservations_count,
+        abnormal_devices_count=abnormal_devices_count,
         occupancy_by_lot=occupancy_by_lot,
         status_distribution=[
             {"name": "空車あり", "value": total_lots_count - full_lots_count, "color": "#4f46e5"},
