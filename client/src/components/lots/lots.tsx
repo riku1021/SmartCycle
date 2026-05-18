@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchParkingStatus, type ParkingStatus } from "@/api/parking-status";
 import { API_BASE_URL } from "@/config/env";
 import Layout from "@/layouts/layout";
+import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 
 type ParkingAvailability = "空きあり" | "空きあり、残りわずか" | "空きなし";
 
@@ -15,10 +16,6 @@ type Lot = {
   walk: string;
   isEv3Linked?: boolean;
 };
-
-const EV3_LINKED_PARKING_LOT_ID = 1;
-const POLL_INTERVAL_MS = 1500;
-const TOTAL_SLOTS = 3;
 
 const initialLots: Lot[] = [
   {
@@ -88,7 +85,7 @@ const LotsComponent: FC = () => {
     };
 
     void tick();
-    const timer = window.setInterval(() => void tick(), POLL_INTERVAL_MS);
+    const timer = window.setInterval(() => void tick(), EV3_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -109,7 +106,7 @@ const LotsComponent: FC = () => {
   );
 
   const pressedCount =
-    ev3Status !== null ? Math.max(TOTAL_SLOTS - ev3Status.available_count, 0) : null;
+    ev3Status !== null ? Math.max(EV3_TOTAL_SLOTS - ev3Status.available_count, 0) : null;
 
   return (
     <Layout title="駐輪場一覧" subtitle="条件でフィルタしながら駐輪場を探せます">
@@ -133,7 +130,7 @@ const LotsComponent: FC = () => {
           </Badge>
           {ev3Status ? (
             <Text color="#64748b" fontSize="0.85rem">
-              押下数: <b>{pressedCount}</b> / {TOTAL_SLOTS} / 空き:{" "}
+              押下数: <b>{pressedCount}</b> / {EV3_TOTAL_SLOTS} / 空き:{" "}
               <b>{ev3Status.available_count}</b> / 更新: {ev3Status.updated_at}
             </Text>
           ) : null}
