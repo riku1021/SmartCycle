@@ -1,13 +1,4 @@
-"""開発・検証用のテストアカウントを冪等に投入するシード処理。
-
-クライアント側 (client/src/lib/adminRole.ts) のロール判定で参照される
-3 アカウント (admin / dev / user) を、新規 DB でも `docker compose up` 直後から
-ログインできるように初期投入する。
-
-冪等性:
-- 既に同じメールアドレスのユーザーが存在する場合はスキップする。
-- 失敗時は呼び出し側にロールバックを委ねる。
-"""
+"""開発・検証用のテストアカウントを冪等に投入するシード処理。"""
 
 from dataclasses import dataclass
 
@@ -59,6 +50,7 @@ async def seed_dev_users(session_maker: async_sessionmaker[AsyncSession]) -> Non
                     )
                 )
                 inserted.append(seed.email)
+
             if inserted:
                 await session.commit()
                 logger.info(

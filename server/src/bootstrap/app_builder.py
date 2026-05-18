@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import load_settings
-from src.infrastructure.db.seed import seed_dev_users
+from src.infrastructure.db.seed import seed_dev_users, seed_reservations
 from src.infrastructure.db.session import close_db, get_session_maker, init_db
 from src.infrastructure.http import setup_exception_handlers
 from src.infrastructure.logger.logger import logger
@@ -35,13 +35,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     init_db(settings.database_url)
     logger.info("データベース接続を初期化しました")
 
-    # 開発・検証用テストアカウントの自動投入 (冪等)
+    # 開発・検証用テストデータの自動投入 (冪等)
     if settings.seed_dev_users:
-        logger.info("SEED_DEV_USERS=true のためテスト用アカウントの投入を試行します")
+        logger.info("SEED_DEV_USERS=true のためテストデータの投入を試行します")
         try:
             await seed_dev_users(get_session_maker())
+            # parking_lots シードの合流後は、この位置で seed_parking_lots() を呼び出す。
+            await seed_reservations(get_session_maker())
         except Exception:
-            logger.exception("テスト用アカウントの投入に失敗しました")
+            logger.exception("テストデータの投入に失敗しました")
 
     try:
         yield
