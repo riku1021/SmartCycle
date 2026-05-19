@@ -4,6 +4,7 @@ import L, { type GeoJSON, type Map as LeafletMap } from "leaflet";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  FaBars,
   FaBell,
   FaBicycle,
   FaCalendarCheck,
@@ -14,9 +15,15 @@ import {
   FaLocationCrosshairs,
   FaLocationDot,
   FaMagnifyingGlass,
+  FaMap,
   FaUser,
   FaXmark,
 } from "react-icons/fa6";
+import { fetchParkingStatus } from "@/api/parking-status";
+import { isAdminOrDevUser } from "@/lib/adminRole";
+import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
+import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
+import MapSideDrawer from "./MapSideDrawer";
 
 type ParkingLot = {
   id: number;
@@ -26,19 +33,23 @@ type ParkingLot = {
   available_spots: number;
   total_spots: number;
   price_per_hour: number;
+  isEv3Linked?: boolean;
 };
+
+type LotStatusClass = "free" | "few" | "full";
 
 const MAP_CENTER: [number, number] = [34.702485, 135.495951];
 
-const LOTS: ParkingLot[] = [
+const INITIAL_LOTS: ParkingLot[] = [
   {
-    id: 1,
-    name: "北浜サイクルポート",
-    latitude: 34.69392,
-    longitude: 135.5016,
-    available_spots: 12,
-    total_spots: 30,
-    price_per_hour: 120,
+    id: EV3_LINKED_PARKING_LOT_ID,
+    name: "梅田ステーション東",
+    latitude: 34.70631,
+    longitude: 135.49887,
+    available_spots: EV3_TOTAL_SLOTS,
+    total_spots: EV3_TOTAL_SLOTS,
+    price_per_hour: 100,
+    isEv3Linked: true,
   },
   {
     id: 2,
@@ -50,15 +61,45 @@ const LOTS: ParkingLot[] = [
     price_per_hour: 150,
   },
   {
-    id: 3,
-    name: "梅田ステーション東",
-    latitude: 34.70631,
-    longitude: 135.49887,
-    available_spots: 18,
-    total_spots: 40,
-    price_per_hour: 100,
+    id: 4,
+    name: "北浜サイクルポート",
+    latitude: 34.69392,
+    longitude: 135.5016,
+    available_spots: 12,
+    total_spots: 30,
+    price_per_hour: 120,
   },
 ];
+
+const lotStatusClass = (
+  available: number,
+  total: number,
+  isEv3Linked?: boolean
+): LotStatusClass => {
+  if (isEv3Linked) {
+    if (available <= 0) return "full";
+    if (available === 1) return "few";
+    return "free";
+  }
+  if (available === 0) return "full";
+  if (available <= total * 0.2) return "few";
+  return "free";
+};
+
+const createLotMarkerIcon = (lot: ParkingLot) => {
+  const status = lotStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
+  const title = status === "full" ? "満" : String(lot.available_spots);
+  const pinColor = status === "full" ? "#ef4444" : status === "few" ? "#f59e0b" : "#10b981";
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:44px;height:44px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.3);display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-weight:800;font-size:0.85rem;background:${pinColor};cursor:pointer;">
+          <span style="font-size:0.7rem;margin-bottom:2px;">P</span>
+          <span>${title}</span>
+        </div>`,
+    iconSize: [44, 44],
+    iconAnchor: [22, 44],
+  });
+};
 
 // モック通知
 const NOTIFICATIONS = [
@@ -91,7 +132,9 @@ const MapComponent: FC = () => {
   const mapRef = useRef<LeafletMap | null>(null);
   const userMarkerRef = useRef<L.CircleMarker | null>(null);
   const routeLayerRef = useRef<GeoJSON | null>(null);
+  const lotMarkersRef = useRef<Map<number, L.Marker>>(new Map());
 
+  const [lots, setLots] = useState<ParkingLot[]>(INITIAL_LOTS);
   const [currentLatLng, setCurrentLatLng] = useState<[number, number]>(MAP_CENTER);
   const [selectedLotId, setSelectedLotId] = useState<number | null>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -117,20 +160,48 @@ const MapComponent: FC = () => {
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [showReserveModal, setShowReserveModal] = useState(false);
+  const [showFloorPlan, setShowFloorPlan] = useState(false);
   const [reserveHours, setReserveHours] = useState(1);
   const [reserveSuccess, setReserveSuccess] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const showAdminMenu = isAdminOrDevUser();
 
   const unreadCount = notifications.filter((n) => n.unread).length;
-  const selectedLot = selectedLotId ? LOTS.find((l) => l.id === selectedLotId) : null;
+  const selectedLot = selectedLotId ? lots.find((l) => l.id === selectedLotId) : null;
 
   const getStatusClass = useCallback(
-    (available: number, total: number): "free" | "few" | "full" => {
-      if (available === 0) return "full";
-      if (available <= total * 0.2) return "few";
-      return "free";
-    },
+    (available: number, total: number, isEv3Linked?: boolean): LotStatusClass =>
+      lotStatusClass(available, total, isEv3Linked),
     []
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const data = await fetchParkingStatus(EV3_LINKED_PARKING_LOT_ID);
+        if (cancelled) return;
+        setLots((prev) =>
+          prev.map((lot) =>
+            lot.id === EV3_LINKED_PARKING_LOT_ID
+              ? { ...lot, available_spots: data.available_count }
+              : lot
+          )
+        );
+      } catch {
+        // バックエンド未起動時は INITIAL_LOTS の表示を維持
+      }
+    };
+
+    void tick();
+    const timer = window.setInterval(() => void tick(), EV3_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   // ---- マップ初期化 ----
   useEffect(() => {
@@ -155,20 +226,11 @@ const MapComponent: FC = () => {
       .addTo(map)
       .bindPopup("現在地");
 
-    LOTS.forEach((lot) => {
-      const status = getStatusClass(lot.available_spots, lot.total_spots);
-      const title = status === "full" ? "満" : String(lot.available_spots);
-      const pinColor = status === "full" ? "#ef4444" : status === "few" ? "#f59e0b" : "#10b981";
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="width:44px;height:44px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.3);display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-weight:800;font-size:0.85rem;background:${pinColor};cursor:pointer;">
-          <span style="font-size:0.7rem;margin-bottom:2px;">P</span>
-          <span>${title}</span>
-        </div>`,
-        iconSize: [44, 44],
-        iconAnchor: [22, 44],
-      });
-      const marker = L.marker([lot.latitude, lot.longitude], { icon }).addTo(map);
+    INITIAL_LOTS.forEach((lot) => {
+      const marker = L.marker([lot.latitude, lot.longitude], {
+        icon: createLotMarkerIcon(lot),
+      }).addTo(map);
+      lotMarkersRef.current.set(lot.id, marker);
       marker.on("click", () => {
         setSelectedLotId(lot.id);
         setPanelOpen(true);
@@ -184,12 +246,20 @@ const MapComponent: FC = () => {
     return () => {
       window.clearTimeout(resizeTimer);
       window.removeEventListener("resize", resizeMap);
+      lotMarkersRef.current.clear();
       map.remove();
       mapRef.current = null;
       userMarkerRef.current = null;
       routeLayerRef.current = null;
     };
-  }, [getStatusClass]);
+  }, []);
+
+  useEffect(() => {
+    lots.forEach((lot) => {
+      const marker = lotMarkersRef.current.get(lot.id);
+      if (marker) marker.setIcon(createLotMarkerIcon(lot));
+    });
+  }, [lots]);
 
   // ---- 現在地取得・追跡トグル ----
   const handleLocateUser = () => {
@@ -310,15 +380,15 @@ const MapComponent: FC = () => {
 
   // ---- 検索フィルタ ----
   const filteredLots = searchQuery.trim()
-    ? LOTS.filter(
+    ? lots.filter(
         (l) =>
           l.name.includes(searchQuery) ||
-          getStatusClass(l.available_spots, l.total_spots) === searchQuery
+          getStatusClass(l.available_spots, l.total_spots, l.isEv3Linked) === searchQuery
       )
-    : LOTS;
+    : lots;
 
   const statusClass = selectedLot
-    ? getStatusClass(selectedLot.available_spots, selectedLot.total_spots)
+    ? getStatusClass(selectedLot.available_spots, selectedLot.total_spots, selectedLot.isEv3Linked)
     : "free";
   const statusLabel =
     statusClass === "full" ? "満車" : statusClass === "few" ? "残りわずか" : "空きあり";
@@ -329,9 +399,22 @@ const MapComponent: FC = () => {
 
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
-        <div className="app-logo-small">
-          <FaBicycle style={{ fontSize: "1.4rem" }} />
-          <span>SmartCycle</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {showAdminMenu && (
+            <button
+              type="button"
+              className="top-action-btn"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="メニューを開く"
+              style={{ width: "42px", height: "42px" }}
+            >
+              <FaBars />
+            </button>
+          )}
+          <div className="app-logo-small">
+            <FaBicycle style={{ fontSize: "1.4rem" }} />
+            <span>SmartCycle</span>
+          </div>
         </div>
         <div className="app-top-actions">
           {/* 現在地ボタン */}
@@ -528,7 +611,7 @@ const MapComponent: FC = () => {
           </div>
           <div className="dest-results">
             {filteredLots.map((lot) => {
-              const sc = getStatusClass(lot.available_spots, lot.total_spots);
+              const sc = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
               const sl = sc === "full" ? "満車" : sc === "few" ? "残りわずか" : "空きあり";
               return (
                 <button
@@ -598,8 +681,8 @@ const MapComponent: FC = () => {
             <FaLocationDot style={{ display: "inline-block" }} /> 周辺の駐輪場
           </div>
           <div className="nearby-mini-list" id="nearby-mini-list">
-            {LOTS.map((lot) => {
-              const sClass = getStatusClass(lot.available_spots, lot.total_spots);
+            {lots.map((lot) => {
+              const sClass = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
               return (
                 <button
                   type="button"
@@ -725,16 +808,24 @@ const MapComponent: FC = () => {
         <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "12px" }}>
           {mapMessage}
         </div>
-        <div className="panel-actions">
-          <button
-            type="button"
-            id="nav-btn"
-            className="secondary-btn"
-            onClick={handleRoute}
-            disabled={isRouting}
-          >
-            <FaLocationArrow /> ルート
-          </button>
+        <div
+          className="panel-actions"
+          style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+        >
+          <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+            <button
+              type="button"
+              id="nav-btn"
+              className="secondary-btn"
+              onClick={handleRoute}
+              disabled={isRouting}
+            >
+              <FaLocationArrow /> ルート
+            </button>
+            <button type="button" className="secondary-btn" onClick={() => setShowFloorPlan(true)}>
+              <FaMap /> 見取り図参照
+            </button>
+          </div>
           <button
             type="button"
             id="reserve-trigger-btn"
@@ -746,6 +837,14 @@ const MapComponent: FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ===== 見取り図モーダル ===== */}
+      {showFloorPlan && (
+        <FloorPlanModal
+          onClose={() => setShowFloorPlan(false)}
+          availableSpots={selectedLot?.available_spots ?? 0}
+        />
+      )}
 
       {/* ===== 予約モーダル ===== */}
       {showReserveModal && selectedLot && (
@@ -825,6 +924,8 @@ const MapComponent: FC = () => {
           </div>
         </div>
       )}
+      {/* ===== サイドドロワー (Admin/Dev) ===== */}
+      <MapSideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </div>
   );
 };

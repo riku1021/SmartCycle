@@ -1,4 +1,5 @@
+from .parking_domain import seed_parking_domain
 from .reservations import seed_reservations
-from .users import seed_dev_users
+from .user import seed_dev_users
 
-__all__ = ["seed_dev_users", "seed_reservations"]
+__all__ = ["seed_dev_users", "seed_parking_domain", "seed_reservations"]

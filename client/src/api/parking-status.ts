@@ -32,7 +32,16 @@ export type DashboardSummary = {
   total_lots_count: number;
   active_reservations_count: number;
   abnormal_devices_count: number;
-  occupancy_by_lot: { name: string; shortName: string; value: number }[];
+  occupancy_by_lot: {
+    id: string;
+    name: string;
+    short_name: string;
+    value: number;
+    latitude: number;
+    longitude: number;
+    total_spots: number;
+    price_per_hour: number;
+  }[];
   status_distribution: { name: string; value: number; color: string }[];
 };
 
