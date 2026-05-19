@@ -30,3 +30,22 @@ export async function fetchMe(): Promise<AuthUser> {
   const { data } = await apiClient.get<AuthUser>("/auth/me");
   return data;
 }
+
+export type UserDetail = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  created_at: string;
+  is_fixed: boolean;
+};
+
+export async function fetchUsers(): Promise<UserDetail[]> {
+  const { data } = await apiClient.get<UserDetail[]>("/auth/users");
+  return data;
+}
+
+export async function updateUserRole(userId: string, role: string): Promise<UserDetail> {
+  const { data } = await apiClient.patch<UserDetail>(`/auth/users/${userId}/role`, { role });
+  return data;
+}

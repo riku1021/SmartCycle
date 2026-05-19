@@ -38,3 +38,15 @@ async def get_current_user(
             detail="User not found",
         )
     return user
+
+
+async def get_dev_user(
+    current: User = Depends(get_current_user),
+) -> User:
+    """開発者権限を持つユーザーのみ許可する"""
+    if current.email != "dev@mail.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied (Dev only)",
+        )
+    return current
