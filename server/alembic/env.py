@@ -10,8 +10,8 @@ from sqlalchemy.engine import Connection
 # server/ を import ルートにする
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from src.infrastructure.db import models as _models  # noqa: E402, F401
 from src.infrastructure.db.base import Base  # noqa: E402
-from src.infrastructure.db.models import user as _user_model  # noqa: E402, F401
 
 config = context.config
 if config.config_file_name is not None:
