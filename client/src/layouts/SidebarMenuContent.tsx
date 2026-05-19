@@ -1,7 +1,7 @@
 import { Box, Button } from "@chakra-ui/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
-import { FaCamera, FaGear, FaList, FaMapLocationDot } from "react-icons/fa6";
+import { FaCamera, FaGear, FaList, FaMapLocationDot, FaUsers } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
 import { getUserRole } from "@/lib/adminRole";
 import { clearAccessToken } from "@/lib/apiClient";
@@ -22,7 +22,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
   const canViewGeneralUserPages = !isAdmin;
 
   const handleMove = async (
-    to: "/dashboard" | "/map" | "/lots" | "/reservations" | "/camera" | "/settings"
+    to: "/dashboard" | "/users" | "/map" | "/lots" | "/reservations" | "/camera" | "/settings"
   ) => {
     await navigate({ to });
     onItemClick?.();
@@ -49,12 +49,25 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
         {canViewDashboard ? (
           <Button
             alignItems="center"
-            bg={isActivePath("/dashboard") ? "#4f46e5" : "transparent"}
+            bg={
+              isActivePath("/dashboard") &&
+              (window.location.search === "" || window.location.search.includes("tab=dashboard"))
+                ? "#4f46e5"
+                : "transparent"
+            }
             borderRadius="12px"
             boxShadow={
-              isActivePath("/dashboard") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
+              isActivePath("/dashboard") &&
+              (window.location.search === "" || window.location.search.includes("tab=dashboard"))
+                ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)"
+                : "none"
             }
-            color={isActivePath("/dashboard") ? "#ffffff" : "#64748b"}
+            color={
+              isActivePath("/dashboard") &&
+              (window.location.search === "" || window.location.search.includes("tab=dashboard"))
+                ? "#ffffff"
+                : "#64748b"
+            }
             display="flex"
             fontWeight={600}
             gap={2.5}
@@ -63,10 +76,37 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
             px={4}
             py={3}
             variant="ghost"
-            _hover={{ bg: isActivePath("/dashboard") ? "#4338ca" : "rgba(79, 70, 229, 0.1)" }}
+            _hover={{
+              bg:
+                isActivePath("/dashboard") &&
+                (window.location.search === "" || window.location.search.includes("tab=dashboard"))
+                  ? "#4338ca"
+                  : "rgba(79, 70, 229, 0.1)",
+            }}
           >
             <MdDashboard />
             管理画面
+          </Button>
+        ) : null}
+        {isDev ? (
+          <Button
+            alignItems="center"
+            bg={isActivePath("/users") ? "#4f46e5" : "transparent"}
+            borderRadius="12px"
+            boxShadow={isActivePath("/users") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
+            color={isActivePath("/users") ? "#ffffff" : "#64748b"}
+            display="flex"
+            fontWeight={600}
+            gap={2.5}
+            justifyContent="flex-start"
+            onClick={() => void handleMove("/users")}
+            px={4}
+            py={3}
+            variant="ghost"
+            _hover={{ bg: isActivePath("/users") ? "#4338ca" : "rgba(79, 70, 229, 0.1)" }}
+          >
+            <FaUsers />
+            ユーザー一覧
           </Button>
         ) : null}
         {canViewGeneralUserPages ? (

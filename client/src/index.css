@@ -2064,7 +2064,8 @@ th {
   }
 
   /* Table responsiveness */
-  #management-table {
+  #management-table,
+  #users-table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
