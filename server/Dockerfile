@@ -20,6 +20,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_PYTHON_DOWNLOADS=0
 
+RUN apt-get update && apt-get install -y libxcb1 libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 # =============================================================================
 # ステージ1: 本番用依存のビルド
 # =============================================================================
@@ -50,6 +51,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --all-groups && \
     test -f .venv/bin/uvicorn
 
+RUN .venv/bin/pip install opencv-python-headless && \
+    .venv/bin/pip uninstall opencv-python -y || true
 # =============================================================================
 # ステージ2: 本番ランタイム
 # =============================================================================

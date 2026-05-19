@@ -25,6 +25,9 @@ dependencies = [
     "pyjwt>=2.9.0",
     "sqlalchemy[asyncio]>=2.0.36",
     "uvicorn[standard]>=0.38.0",
+    "ultralytics>=8.0",
+    "pillow>=10.0",
+    "opencv-python-headless>=4.0",
 ]
 
 # =======================================
@@ -132,3 +135,11 @@ exclude_lines = [
     "if __name__ == .__main__.:",
 ]
 show_missing = true
+
+# =============================================================================
+# uv 設定
+# =============================================================================
+[tool.uv]
+constraint-dependencies = [
+    "opencv-python-headless>=4.0",
+]

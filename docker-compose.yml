@@ -49,7 +49,7 @@ services:
       - BACKEND_CMD=${BACKEND_CMD:-uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload}
       - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://smartcycle:smartcycle@postgres:5432/smartcycle}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars-ok}
-    command: sh -c "uv run alembic -c /app/alembic.ini upgrade head && $$BACKEND_CMD"
+    command: sh -c "uv run alembic -c /app/alembic.ini upgrade head && .venv/bin/pip uninstall opencv-python -y || true && $$BACKEND_CMD"
     depends_on:
       postgres:
         condition: service_healthy

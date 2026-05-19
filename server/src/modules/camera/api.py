@@ -1,9 +1,14 @@
 """カメラ画像受信用 API。"""
 
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
+
+from .service import detect_bicycles
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/camera", tags=["camera"])
 
@@ -52,21 +57,33 @@ async def receive_camera_image(
             detail="Image payload is empty",
         )
 
-    # TODO: ここで物体検出（自転車検出）を実装してください。
-    # 例: image_bytes を推論モデルへ入力し、detected_count と boxes を実値で更新する。
+    # --- 物体検出 ---
+    try:
+        boxes_raw = detect_bicycles(image_bytes)
+        boxes = [DetectionBox(**b) for b in boxes_raw]
+        detected_count = len(boxes)
+        message = "Detection succeeded."
+    except (ValueError, RuntimeError) as exc:
+        logger.warning("Detection failed: %s", exc)
+        return CameraImageReceiveResponse(
+            message=f"Detection failed: {exc}",
+            content_type=content_type,
+            size_bytes=len(image_bytes),
+        )
 
-    # TODO: 推論結果のDB永続化は別タスクで実装する。
+    # TODO: 推論結果のDB永続化（別タスク）
+    # TODO: 認証/署名検証強化
     global _latest_detection
     _latest_detection = LatestDetectionResponse(
-        detected_count=0,
-        boxes=[],
+        detected_count=detected_count,
+        boxes=boxes,
         received_at=datetime.now(UTC).isoformat(),
         content_type=content_type,
         size_bytes=len(image_bytes),
     )
 
     return CameraImageReceiveResponse(
-        message="Camera image received. Processing is not implemented yet.",
+        message=message,
         content_type=content_type,
         size_bytes=len(image_bytes),
     )
