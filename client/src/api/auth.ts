@@ -30,3 +30,8 @@ export async function fetchMe(): Promise<AuthUser> {
   const { data } = await apiClient.get<AuthUser>("/auth/me");
   return data;
 }
+
+export async function updateMe(params: { name?: string }): Promise<AuthUser> {
+  const { data } = await apiClient.patch<AuthUser>("/auth/me", params);
+  return data;
+}

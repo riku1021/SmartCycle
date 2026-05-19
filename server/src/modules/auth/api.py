@@ -44,6 +44,10 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UpdateProfileBody(BaseModel):
+    name: str | None = Field(None, max_length=255)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -112,3 +116,18 @@ async def login(
 @router.get("/me", response_model=UserOut)
 async def me(current: User = Depends(get_current_user)) -> User:
     return current
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(
+    body: UpdateProfileBody,
+    current: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> User:
+    auth = AuthService(session, settings)
+    user = await auth.update_user(current.id, name=body.name)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    await session.commit()
+    return user
