@@ -31,6 +31,15 @@ class AuthService:
         result = await self._session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
+    async def update_user(self, user_id: uuid.UUID, name: str | None = None) -> User | None:
+        user = await self.get_user_by_id(user_id)
+        if user is None:
+            return None
+        if name is not None:
+            user.name = name
+        await self._session.flush()
+        return user
+
     async def register(
         self,
         *,

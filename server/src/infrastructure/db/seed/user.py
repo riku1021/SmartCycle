@@ -47,9 +47,14 @@ async def seed_dev_users(session_maker: async_sessionmaker[AsyncSession]) -> Non
     async with session_maker() as session:
         try:
             inserted: list[str] = []
+            updated: list[str] = []
             for seed in _SEED_USERS:
                 existing = await session.execute(select(User).where(User.email == seed.email))
-                if existing.scalar_one_or_none() is not None:
+                user = existing.scalar_one_or_none()
+                if user is not None:
+                    if user.name != seed.name:
+                        user.name = seed.name
+                        updated.append(seed.email)
                     continue
                 session.add(
                     User(
@@ -59,13 +64,13 @@ async def seed_dev_users(session_maker: async_sessionmaker[AsyncSession]) -> Non
                     )
                 )
                 inserted.append(seed.email)
-            if inserted:
+            if inserted or updated:
                 await session.commit()
                 logger.info(
-                    f"テスト用アカウントを投入しました: count={len(inserted)} emails={inserted}"
+                    f"テスト用アカウントを投入/更新しました: inserted={len(inserted)} updated={len(updated)}"
                 )
             else:
-                logger.info("テスト用アカウントは既に投入済みのためスキップしました")
+                logger.info("テスト用アカウントは既に最新のためスキップしました")
         except Exception:
             await session.rollback()
             raise
