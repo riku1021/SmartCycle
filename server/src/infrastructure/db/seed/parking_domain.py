@@ -24,10 +24,9 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
 
             # 駐輪場の追加
             lots_data = [
-                ("グランフロント大阪 南館 駐輪場", 34.7042, 135.4946, 200, 100),
-                ("ヨドバシ梅田タワー 駐輪場", 34.7061, 135.4962, 150, 150),
-                ("大阪ステーションシティ 駐輪場", 34.7028, 135.4950, 100, 200),
-                ("梅田スカイビル 駐輪場", 34.7051, 135.4897, 80, 150),
+                ("梅田ステーション東", 34.7042, 135.4946, 200, 100),
+                ("中之島ゲート", 34.7061, 135.4962, 150, 150),
+                ("本町サイクルデッキ", 34.7028, 135.4950, 100, 200),
             ]
             lots = []
             for name, lat, lng, spots, price in lots_data:
@@ -48,7 +47,6 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                 (lots[0].id, 180, lots[0].total_spots),  # 空き多数
                 (lots[1].id, 2, lots[1].total_spots),  # ほぼ満車
                 (lots[2].id, 45, lots[2].total_spots),  # 半分空き
-                (lots[3].id, 0, lots[3].total_spots),  # 満車
             ]
             for lot_id, available, total in statuses_data:
                 session.add(
