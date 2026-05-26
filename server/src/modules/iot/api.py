@@ -2,16 +2,19 @@
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.config.deps import get_settings
+from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.models.device import Device
 from src.infrastructure.db.models.parking_lot import ParkingLot
 from src.infrastructure.db.models.parking_status import ParkingStatus
 from src.infrastructure.db.models.reservation import Reservation
 from src.infrastructure.db.session import get_db
+from src.modules.line.service import LineNotifier
 
 router = APIRouter(prefix="/api", tags=["iot"])
 
@@ -30,17 +33,56 @@ class ParkingStatusResponse(BaseModel):
 _latest_status_by_lot_id: dict[int, ParkingStatusResponse] = {}
 
 
+def _available_counts_snapshot() -> dict[int, int]:
+    return {lot_id: status.available_count for lot_id, status in _latest_status_by_lot_id.items()}
+
+
+async def _send_line_notification(
+    settings: Settings,
+    parking_lot_id: int,
+    previous_available: int | None,
+    new_available: int,
+    available_by_lot_id: dict[int, int],
+) -> None:
+    notifier = LineNotifier(settings)
+    await notifier.notify_status_change(
+        parking_lot_id,
+        previous_available,
+        new_available,
+        available_by_lot_id,
+    )
+
+
 @router.post("/iot/parking-status", response_model=ParkingStatusResponse)
-async def upsert_parking_status(body: ParkingStatusUpsertBody) -> ParkingStatusResponse:
+async def upsert_parking_status(
+    body: ParkingStatusUpsertBody,
+    background_tasks: BackgroundTasks,
+    settings: Settings = Depends(get_settings),
+) -> ParkingStatusResponse:
     # TODO: 認証・バリデーション強化（機器署名など）
     # TODO: DB保存（履歴テーブル/最新テーブル分離）
     # TODO: 異常値検知（負値、急激なジャンプなど）
+    previous = _latest_status_by_lot_id.get(body.parking_lot_id)
+    previous_available = previous.available_count if previous is not None else None
+
     latest = ParkingStatusResponse(
         parking_lot_id=body.parking_lot_id,
         available_count=body.available_count,
         updated_at=datetime.now(UTC).isoformat(),
     )
     _latest_status_by_lot_id[body.parking_lot_id] = latest
+
+    snapshot = _available_counts_snapshot()
+    snapshot[body.parking_lot_id] = body.available_count
+    background_tasks.add_task(
+        _send_line_notification,
+        settings,
+        body.parking_lot_id,
+        previous_available,
+        body.available_count,
+        snapshot,
+    )
+
     return latest
 
 

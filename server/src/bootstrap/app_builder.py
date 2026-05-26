@@ -16,6 +16,7 @@ from src.infrastructure.db.session import close_db, get_session_maker, init_db
 from src.infrastructure.http import setup_exception_handlers
 from src.infrastructure.logger.logger import logger
 from src.infrastructure.middleware import setup_middleware
+from src.modules.line.validation import warn_if_line_misconfigured
 
 from .router_registry import include_routers
 
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # 設定を読み込み
     settings = load_settings()
     logger.info(f"サーバー設定: host={settings.host}, port={settings.port}")
+    warn_if_line_misconfigured(settings)
     init_db(settings.database_url)
     logger.info("データベース接続を初期化しました")
 

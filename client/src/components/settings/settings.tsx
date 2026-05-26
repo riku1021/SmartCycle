@@ -12,6 +12,7 @@ import {
   FaMoon,
   FaRegUser,
 } from "react-icons/fa6";
+import { fetchMe, updateMe } from "@/api/auth";
 import { clearAccessToken } from "@/lib/apiClient";
 
 const DISPLAY_NAME_KEY = "smartcycle_display_name";
@@ -41,13 +42,34 @@ const SettingsComponent: FC = () => {
     localStorage.setItem(DARK_KEY, String(darkMode));
   }, [darkMode]);
 
-  const handleSave = () => {
+  // 初期ロード時にサーバーからユーザー情報を取得
+  useEffect(() => {
+    fetchMe()
+      .then((user) => {
+        setDisplayName(user.name);
+        localStorage.setItem(DISPLAY_NAME_KEY, user.name);
+        if (nameInputRef.current) {
+          nameInputRef.current.value = user.name;
+        }
+      })
+      .catch((err) => {
+        console.error("ユーザー情報の取得に失敗しました", err);
+      });
+  }, []);
+
+  const handleSave = async () => {
     const name = nameInputRef.current?.value ?? displayName;
-    localStorage.setItem(DISPLAY_NAME_KEY, name);
-    localStorage.setItem(NOTIF_KEY, String(notifications));
-    setDisplayName(name);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await updateMe({ name });
+      localStorage.setItem(DISPLAY_NAME_KEY, name);
+      localStorage.setItem(NOTIF_KEY, String(notifications));
+      setDisplayName(name);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error("保存に失敗しました", err);
+      alert("保存に失敗しました。");
+    }
   };
 
   const handleLogout = () => {
