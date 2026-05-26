@@ -11,7 +11,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import load_settings
-from src.infrastructure.db.session import close_db, init_db
+from src.infrastructure.db.seed import seed_camera
+from src.infrastructure.db.session import close_db, get_session_maker, init_db
 from src.infrastructure.http import setup_exception_handlers
 from src.infrastructure.logger.logger import logger
 from src.infrastructure.middleware import setup_middleware
@@ -33,6 +34,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info(f"サーバー設定: host={settings.host}, port={settings.port}")
     init_db(settings.database_url)
     logger.info("データベース接続を初期化しました")
+
+    # シードデータ投入
+    await seed_camera(get_session_maker())
+    logger.info("シードデータを投入しました")
 
     try:
         yield

@@ -2,15 +2,24 @@
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.infrastructure.db.models.camera_detection import CameraDetection
+from src.infrastructure.db.models.device import Device
+from src.infrastructure.db.session import get_db
 
 from .service import detect_bicycles
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/camera", tags=["camera"])
+
+_DEVICE_NAME = "開発用カメラ-梅田東"
 
 
 class CameraImageReceiveResponse(BaseModel):
@@ -36,6 +45,7 @@ class LatestDetectionResponse(BaseModel):
     size_bytes: int
 
 
+# フォールバック用メモリ保持
 _latest_detection = LatestDetectionResponse(
     detected_count=0,
     boxes=[],
@@ -48,6 +58,7 @@ _latest_detection = LatestDetectionResponse(
 @router.post("/images", response_model=CameraImageReceiveResponse)
 async def receive_camera_image(
     request: Request,
+    db: AsyncSession = Depends(get_db),
 ) -> CameraImageReceiveResponse:
     image_bytes = await request.body()
     content_type = request.headers.get("content-type")
@@ -71,8 +82,32 @@ async def receive_camera_image(
             size_bytes=len(image_bytes),
         )
 
-    # TODO: 推論結果のDB永続化（別タスク）
+    # --- DB永続化 ---
+    try:
+        result = await db.execute(
+            select(Device).where(Device.name == _DEVICE_NAME)
+        )
+        device = result.scalar_one_or_none()
+
+        if device is not None:
+            detection_data: dict[str, Any] = {
+                "boxes": [b.model_dump() for b in boxes]
+            }
+            detection = CameraDetection(
+                parking_lot_id=device.parking_lot_id,
+                device_id=device.id,
+                detected_count=detected_count,
+                detection_data=detection_data,
+                image_url=None,
+            )
+            db.add(detection)
+            await db.flush()
+    except Exception as exc:
+        logger.warning("DB保存失敗: %s", exc)
+
+    # メモリ更新（フォールバック用）
     # TODO: 認証/署名検証強化
+    # TODO: モデル差し替えは service.py の _MODEL_PATH を変更
     global _latest_detection
     _latest_detection = LatestDetectionResponse(
         detected_count=detected_count,
@@ -90,5 +125,30 @@ async def receive_camera_image(
 
 
 @router.get("/detections/latest", response_model=LatestDetectionResponse)
-async def get_latest_detection() -> LatestDetectionResponse:
+async def get_latest_detection(
+    db: AsyncSession = Depends(get_db),
+) -> LatestDetectionResponse:
+    """最新の検出結果をDBから返す。DBに記録がなければメモリの値を返す。"""
+    try:
+        result = await db.execute(
+            select(CameraDetection)
+            .order_by(CameraDetection.created_at.desc())
+            .limit(1)
+        )
+        detection = result.scalar_one_or_none()
+
+        if detection is not None:
+            boxes: list[DetectionBox] = []
+            if detection.detection_data and "boxes" in detection.detection_data:
+                boxes = [DetectionBox(**b) for b in detection.detection_data["boxes"]]
+            return LatestDetectionResponse(
+                detected_count=detection.detected_count,
+                boxes=boxes,
+                received_at=detection.created_at.isoformat(),
+                content_type=None,
+                size_bytes=0,
+            )
+    except Exception as exc:
+        logger.warning("DB取得失敗: %s", exc)
+
     return _latest_detection
