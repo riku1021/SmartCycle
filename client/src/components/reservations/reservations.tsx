@@ -61,9 +61,6 @@ const ReservationCard: FC<ReservationCardProps> = ({
           <Heading as="h3" fontSize={{ base: "1rem", md: "1.1rem" }} lineHeight={1.35}>
             {reservation.lotName}
           </Heading>
-          <Text color="#64748b" fontSize="0.88rem" mt={1}>
-            {reservation.location}
-          </Text>
         </Box>
         <Badge
           bg={currentStatus.bg}
