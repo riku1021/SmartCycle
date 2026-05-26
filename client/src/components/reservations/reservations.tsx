@@ -1,11 +1,16 @@
 import { Badge, Box, Button, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
+import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  cancelReservation,
+  fetchMyReservations,
+  type ReservationResponse,
+  type ReservationStatus,
+} from "@/api/reservations";
 import Layout from "@/layouts/layout";
 
 type ReservationTab = "active" | "history";
-
-type ReservationStatus = "reserved" | "active" | "completed" | "cancelled";
 
 type Reservation = {
   id: string;
@@ -17,57 +22,6 @@ type Reservation = {
   status: ReservationStatus;
 };
 
-const activeReservations: Reservation[] = [
-  {
-    id: "RSV-20260422-002",
-    lotName: "梅田ステーション東",
-    location: "大阪駅東口から徒歩4分",
-    dateLabel: "2026/05/12",
-    timeLabel: "09:30 - 11:30",
-    priceLabel: "予定料金 ¥200",
-    status: "active",
-  },
-  {
-    id: "RSV-20260422-001",
-    lotName: "中之島ゲート",
-    location: "大阪市北区中之島 2丁目付近",
-    dateLabel: "2026/05/13",
-    timeLabel: "17:30 - 18:30",
-    priceLabel: "予定料金 ¥120",
-    status: "reserved",
-  },
-];
-
-const historyReservations: Reservation[] = [
-  {
-    id: "RSV-20260421-003",
-    lotName: "中之島ゲート",
-    location: "大阪市北区中之島 2丁目付近",
-    dateLabel: "2026/04/21",
-    timeLabel: "12:00 - 13:00",
-    priceLabel: "キャンセル料なし",
-    status: "cancelled",
-  },
-  {
-    id: "RSV-20260420-006",
-    lotName: "本町サイクルデッキ",
-    location: "大阪市中央区本町 3丁目付近",
-    dateLabel: "2026/04/20",
-    timeLabel: "09:00 - 11:00",
-    priceLabel: "支払い済み ¥300",
-    status: "completed",
-  },
-  {
-    id: "RSV-20260418-014",
-    lotName: "梅田ステーション東",
-    location: "大阪駅東口から徒歩4分",
-    dateLabel: "2026/04/18",
-    timeLabel: "13:20 - 14:20",
-    priceLabel: "支払い済み ¥120",
-    status: "completed",
-  },
-];
-
 const statusStyle: Record<ReservationStatus, { bg: string; color: string; label: string }> = {
   reserved: { bg: "#dcfce7", color: "#166534", label: "予約済み" },
   active: { bg: "#eef2ff", color: "#4f46e5", label: "利用中" },
@@ -78,9 +32,18 @@ const statusStyle: Record<ReservationStatus, { bg: string; color: string; label:
 type ReservationCardProps = {
   reservation: Reservation;
   showActions: boolean;
+  isCancelling: boolean;
+  onCancel: (reservationId: string) => void;
+  onOpenMap: () => void;
 };
 
-const ReservationCard: FC<ReservationCardProps> = ({ reservation, showActions }) => {
+const ReservationCard: FC<ReservationCardProps> = ({
+  reservation,
+  showActions,
+  isCancelling,
+  onCancel,
+  onOpenMap,
+}) => {
   const currentStatus = statusStyle[reservation.status];
 
   return (
@@ -147,7 +110,7 @@ const ReservationCard: FC<ReservationCardProps> = ({ reservation, showActions })
 
       {showActions ? (
         <Flex direction={{ base: "column", sm: "row" }} gap={3} mt={4}>
-          <Button flex={1} onClick={() => undefined} type="button" variant="outline">
+          <Button flex={1} onClick={onOpenMap} type="button" variant="outline">
             地図で確認
           </Button>
           <Button
@@ -155,12 +118,13 @@ const ReservationCard: FC<ReservationCardProps> = ({ reservation, showActions })
             border="1px solid"
             borderColor="#fecdd3"
             color="#be123c"
+            disabled={isCancelling}
             flex={1}
-            onClick={() => undefined}
+            onClick={() => onCancel(reservation.id)}
             type="button"
             variant="outline"
           >
-            キャンセル
+            {isCancelling ? "キャンセル中..." : "キャンセル"}
           </Button>
         </Flex>
       ) : null}
@@ -168,9 +132,98 @@ const ReservationCard: FC<ReservationCardProps> = ({ reservation, showActions })
   );
 };
 
+const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const timeFormatter = new Intl.DateTimeFormat("ja-JP", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const formatPriceLabel = (reservation: ReservationResponse): string => {
+  if (reservation.status === "cancelled") {
+    return reservation.total_amount
+      ? `キャンセル済み ¥${reservation.total_amount}`
+      : "キャンセル料なし";
+  }
+  if (reservation.status === "completed") {
+    return reservation.total_amount ? `支払い済み ¥${reservation.total_amount}` : "支払い済み";
+  }
+  return reservation.total_amount ? `予定料金 ¥${reservation.total_amount}` : "予定料金 未確定";
+};
+
+const toDisplayReservation = (reservation: ReservationResponse): Reservation => {
+  const startTime = new Date(reservation.start_time);
+  const endTime = new Date(reservation.end_time);
+  return {
+    id: reservation.id,
+    lotName: reservation.parking_lot_name,
+    location: reservation.location,
+    dateLabel: dateFormatter.format(startTime),
+    timeLabel: `${timeFormatter.format(startTime)} - ${timeFormatter.format(endTime)}`,
+    priceLabel: formatPriceLabel(reservation),
+    status: reservation.status,
+  };
+};
+
+const isActiveReservation = (reservation: Reservation): boolean =>
+  reservation.status === "active" || reservation.status === "reserved";
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  return "予約情報を取得できませんでした";
+};
+
 const ReservationsComponent: FC = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<ReservationTab>("active");
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+  const [cancellingReservationId, setCancellingReservationId] = useState<string | null>(null);
+
+  const loadReservations = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError("");
+    try {
+      const data = await fetchMyReservations();
+      setReservations(data.map(toDisplayReservation));
+    } catch (error) {
+      setFetchError(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadReservations();
+  }, [loadReservations]);
+
+  const activeReservations = useMemo(
+    () => reservations.filter(isActiveReservation),
+    [reservations]
+  );
+  const historyReservations = useMemo(
+    () => reservations.filter((reservation) => !isActiveReservation(reservation)),
+    [reservations]
+  );
   const displayedReservations = tab === "active" ? activeReservations : historyReservations;
+
+  const handleCancel = async (reservationId: string) => {
+    setCancellingReservationId(reservationId);
+    setFetchError("");
+    try {
+      await cancelReservation(reservationId);
+      await loadReservations();
+    } catch (error) {
+      setFetchError(getErrorMessage(error));
+    } finally {
+      setCancellingReservationId(null);
+    }
+  };
 
   return (
     <Layout title="予約管理" subtitle="予約中・履歴の確認ができます">
@@ -210,12 +263,32 @@ const ReservationsComponent: FC = () => {
           </Button>
         </HStack>
 
-        {displayedReservations.length > 0 ? (
+        {fetchError ? (
+          <Box bg="#fef2f2" borderRadius="xl" color="#b91c1c" mb={4} p={4}>
+            <Text fontSize="0.9rem" fontWeight={700}>
+              {fetchError}
+            </Text>
+            <Button mt={3} onClick={() => void loadReservations()} type="button" variant="outline">
+              再読み込み
+            </Button>
+          </Box>
+        ) : null}
+
+        {isLoading ? (
+          <Box bg="#f8fafc" borderRadius="xl" p={8} textAlign="center">
+            <Heading as="h3" fontSize="lg">
+              予約情報を読み込んでいます
+            </Heading>
+          </Box>
+        ) : displayedReservations.length > 0 ? (
           <SimpleGrid columns={{ base: 1, lg: 2 }} gap={4}>
             {displayedReservations.map((reservation) => (
               <ReservationCard
                 key={reservation.id}
                 reservation={reservation}
+                isCancelling={cancellingReservationId === reservation.id}
+                onCancel={handleCancel}
+                onOpenMap={() => void navigate({ to: "/map" })}
                 showActions={tab === "active"}
               />
             ))}
