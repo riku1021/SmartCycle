@@ -19,40 +19,52 @@ import {
   FaUser,
   FaXmark,
 } from "react-icons/fa6";
+import { fetchParkingLots } from "@/api/parking-lots";
 import { fetchParkingStatus } from "@/api/parking-status";
+import { createReservation } from "@/api/reservations";
 import { isAdminOrDevUser } from "@/lib/adminRole";
 import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
 
 type ParkingLot = {
-  id: number;
+  id: string;
   name: string;
   latitude: number;
   longitude: number;
   available_spots: number;
   total_spots: number;
   price_per_hour: number;
+  externalStatusId?: number;
   isEv3Linked?: boolean;
 };
 
 type LotStatusClass = "free" | "few" | "full";
 
 const MAP_CENTER: [number, number] = [34.702485, 135.495951];
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const toApiDateTime = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
 
 const INITIAL_LOTS: ParkingLot[] = [
   {
-    id: EV3_LINKED_PARKING_LOT_ID,
+    id: "static-umeda-station-east",
     name: "梅田ステーション東",
     latitude: 34.70631,
     longitude: 135.49887,
     available_spots: EV3_TOTAL_SLOTS,
     total_spots: EV3_TOTAL_SLOTS,
     price_per_hour: 100,
+    externalStatusId: EV3_LINKED_PARKING_LOT_ID,
     isEv3Linked: true,
   },
   {
-    id: 2,
+    id: "static-honmachi-cycle-deck",
     name: "本町サイクルデッキ",
     latitude: 34.68462,
     longitude: 135.50213,
@@ -61,7 +73,7 @@ const INITIAL_LOTS: ParkingLot[] = [
     price_per_hour: 150,
   },
   {
-    id: 4,
+    id: "static-kitahama-cycle-port",
     name: "北浜サイクルポート",
     latitude: 34.69392,
     longitude: 135.5016,
@@ -132,11 +144,11 @@ const MapComponent: FC = () => {
   const mapRef = useRef<LeafletMap | null>(null);
   const userMarkerRef = useRef<L.CircleMarker | null>(null);
   const routeLayerRef = useRef<GeoJSON | null>(null);
-  const lotMarkersRef = useRef<Map<number, L.Marker>>(new Map());
+  const lotMarkersRef = useRef<Map<string, L.Marker>>(new Map());
 
   const [lots, setLots] = useState<ParkingLot[]>(INITIAL_LOTS);
   const [currentLatLng, setCurrentLatLng] = useState<[number, number]>(MAP_CENTER);
-  const [selectedLotId, setSelectedLotId] = useState<number | null>(null);
+  const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [isRouting, setIsRouting] = useState(false);
@@ -163,6 +175,7 @@ const MapComponent: FC = () => {
   const [showFloorPlan, setShowFloorPlan] = useState(false);
   const [reserveHours, setReserveHours] = useState(1);
   const [reserveSuccess, setReserveSuccess] = useState(false);
+  const [isReserving, setIsReserving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const showAdminMenu = isAdminOrDevUser();
@@ -179,13 +192,42 @@ const MapComponent: FC = () => {
   useEffect(() => {
     let cancelled = false;
 
+    const loadParkingLots = async () => {
+      try {
+        const data = await fetchParkingLots();
+        if (cancelled || data.length === 0) return;
+        setLots(
+          data.map((lot) => ({
+            id: lot.id,
+            name: lot.name,
+            latitude: lot.latitude,
+            longitude: lot.longitude,
+            available_spots: lot.available_spots,
+            total_spots: lot.total_spots,
+            price_per_hour: lot.price_per_hour,
+          }))
+        );
+      } catch {
+        // バックエンド未起動時は INITIAL_LOTS の表示を維持
+      }
+    };
+
+    void loadParkingLots();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const tick = async () => {
       try {
         const data = await fetchParkingStatus(EV3_LINKED_PARKING_LOT_ID);
         if (cancelled) return;
         setLots((prev) =>
           prev.map((lot) =>
-            lot.id === EV3_LINKED_PARKING_LOT_ID
+            lot.externalStatusId === EV3_LINKED_PARKING_LOT_ID
               ? { ...lot, available_spots: data.available_count }
               : lot
           )
@@ -226,19 +268,6 @@ const MapComponent: FC = () => {
       .addTo(map)
       .bindPopup("現在地");
 
-    INITIAL_LOTS.forEach((lot) => {
-      const marker = L.marker([lot.latitude, lot.longitude], {
-        icon: createLotMarkerIcon(lot),
-      }).addTo(map);
-      lotMarkersRef.current.set(lot.id, marker);
-      marker.on("click", () => {
-        setSelectedLotId(lot.id);
-        setPanelOpen(true);
-        setShowSearch(false);
-        map.panTo([lot.latitude, lot.longitude]);
-      });
-    });
-
     const resizeMap = () => map.invalidateSize();
     const resizeTimer = window.setTimeout(resizeMap, 120);
     window.addEventListener("resize", resizeMap);
@@ -255,9 +284,33 @@ const MapComponent: FC = () => {
   }, []);
 
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const activeLotIds = new Set(lots.map((lot) => lot.id));
+    lotMarkersRef.current.forEach((marker, lotId) => {
+      if (!activeLotIds.has(lotId)) {
+        marker.remove();
+        lotMarkersRef.current.delete(lotId);
+      }
+    });
+
     lots.forEach((lot) => {
-      const marker = lotMarkersRef.current.get(lot.id);
-      if (marker) marker.setIcon(createLotMarkerIcon(lot));
+      let marker = lotMarkersRef.current.get(lot.id);
+      if (!marker) {
+        marker = L.marker([lot.latitude, lot.longitude], {
+          icon: createLotMarkerIcon(lot),
+        }).addTo(map);
+        lotMarkersRef.current.set(lot.id, marker);
+        marker.on("click", () => {
+          setSelectedLotId(lot.id);
+          setPanelOpen(true);
+          setShowSearch(false);
+          map.panTo([lot.latitude, lot.longitude]);
+        });
+      }
+      marker.setLatLng([lot.latitude, lot.longitude]);
+      marker.setIcon(createLotMarkerIcon(lot));
     });
   }, [lots]);
 
@@ -360,22 +413,50 @@ const MapComponent: FC = () => {
   };
 
   // ---- 予約する ----
-  const handleReserve = () => {
+  const handleReserve = async () => {
     if (!selectedLot) return;
-    setReserveSuccess(true);
-    setShowReserveModal(false);
-    setMapMessage(`${selectedLot.name}の予約が完了しました！`);
-    // 通知を追加
-    setNotifications((prev) => [
-      {
-        id: Date.now(),
-        title: "予約完了",
-        text: `${selectedLot.name}の予約が完了しました。`,
-        date: "今",
-        unread: true,
-      },
-      ...prev,
-    ]);
+    if (!UUID_PATTERN.test(selectedLot.id)) {
+      setMapMessage("予約にはバックエンドの駐輪場情報が必要です。時間をおいて再度お試しください。");
+      setShowReserveModal(false);
+      return;
+    }
+
+    const startTime = new Date();
+    const endTime = new Date(startTime.getTime() + reserveHours * 60 * 60 * 1000);
+
+    setIsReserving(true);
+    setMapMessage("予約を作成しています...");
+    try {
+      await createReservation({
+        parking_lot_id: selectedLot.id,
+        start_time: toApiDateTime(startTime),
+        end_time: toApiDateTime(endTime),
+      });
+      setReserveSuccess(true);
+      setShowReserveModal(false);
+      setMapMessage(`${selectedLot.name}の予約が完了しました！`);
+      setLots((prev) =>
+        prev.map((lot) =>
+          lot.id === selectedLot.id
+            ? { ...lot, available_spots: Math.max(lot.available_spots - 1, 0) }
+            : lot
+        )
+      );
+      setNotifications((prev) => [
+        {
+          id: Date.now(),
+          title: "予約完了",
+          text: `${selectedLot.name}の予約が完了しました。`,
+          date: "今",
+          unread: true,
+        },
+        ...prev,
+      ]);
+    } catch {
+      setMapMessage("予約に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setIsReserving(false);
+    }
   };
 
   // ---- 検索フィルタ ----
@@ -901,8 +982,13 @@ const MapComponent: FC = () => {
                 料金目安: ¥{selectedLot.price_per_hour * reserveHours}（{reserveHours}時間）
               </span>
             </div>
-            <button type="button" className="primary-btn" onClick={handleReserve}>
-              <FaCalendarCheck /> 予約を確定する
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={handleReserve}
+              disabled={isReserving}
+            >
+              <FaCalendarCheck /> {isReserving ? "予約中..." : "予約を確定する"}
             </button>
             <button
               type="button"
