@@ -1,6 +1,6 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
-import { fetchLatestDetection, type LatestDetectionResponse, sendCameraFrame } from "@/api/camera";
+import { fetchLatestDetection, type LatestDetectionResponse, sendCameraFrame, sendTripEvent } from "@/api/camera";
 import Layout from "@/layouts/layout";
 
 const CameraComponent: FC = () => {
@@ -11,6 +11,7 @@ const CameraComponent: FC = () => {
   const pollingIntervalRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const prevBoxCentersRef = useRef<Map<number, number>>(new Map());
+  const resetTimerRef = useRef<number | null>(null);  // ← 追加
   const [isStreaming, setIsStreaming] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [cameraError, setCameraError] = useState<string>("");
@@ -113,9 +114,11 @@ const CameraComponent: FC = () => {
           // 画面上で左→右 = 画像座標で右→左
           if (prevCenterX > lineX && centerX <= lineX) {
             setTripCount((c) => c + 1);
+            void sendTripEvent("in");
           }
           if (prevCenterX <= lineX && centerX > lineX) {
             setTripCount((c) => Math.max(0, c - 1));
+            void sendTripEvent("out");
           }
         }
         prevBoxCentersRef.current.set(i, centerX);
@@ -127,13 +130,23 @@ const CameraComponent: FC = () => {
       }
     }
 
-    // 検出がなくなったらキャッシュをリセット
+    // 検出がなくなったら1秒後にキャッシュをリセット
     if (latest.boxes.length === 0) {
-      prevBoxCentersRef.current.clear();
+      if (resetTimerRef.current === null) {
+        resetTimerRef.current = window.setTimeout(() => {
+          prevBoxCentersRef.current.clear();
+          resetTimerRef.current = null;
+        }, 1000);
+      }
+    } else {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
+      }
     }
 
     setLatestDetection(latest);
-  }, []);
+  }, [sendTripEvent]);
 
   const runPollingCycle = useCallback(async () => {
     try {
