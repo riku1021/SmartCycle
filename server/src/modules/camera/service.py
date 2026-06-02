@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # COCO クラス ID: 1 = bicycle
 _BICYCLE_CLASS_ID = 1
-_CONFIDENCE_THRESHOLD = 0.4
+_CONFIDENCE_THRESHOLD = 0.25
 _MODEL_PATH = "yolov8n.pt"  # TODO:
 
 
@@ -53,7 +53,7 @@ def detect_bicycles(image_bytes: bytes) -> list[dict]:
 
     try:
         model = get_model()
-        results = model(image, verbose=False)
+        results = model(image, verbose=False, iou=0.3)
     except Exception as exc:
         raise RuntimeError(f"推論エラー: {exc}") from exc
 

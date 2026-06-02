@@ -114,15 +114,22 @@ const CameraComponent: FC = () => {
           if (prevCenterX > lineX && centerX <= lineX) {
             setTripCount((c) => c + 1);
           }
+          if (prevCenterX <= lineX && centerX > lineX) {
+            setTripCount((c) => Math.max(0, c - 1));
+          }
         }
         prevBoxCentersRef.current.set(i, centerX);
       });
-      // 今回検出されなかったボックスのキャッシュを削除
       if (latest.boxes.length < prevBoxCentersRef.current.size) {
         for (let i = latest.boxes.length; i < prevBoxCentersRef.current.size; i++) {
           prevBoxCentersRef.current.delete(i);
         }
       }
+    }
+
+    // 検出がなくなったらキャッシュをリセット
+    if (latest.boxes.length === 0) {
+      prevBoxCentersRef.current.clear();
     }
 
     setLatestDetection(latest);

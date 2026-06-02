@@ -1,5 +1,8 @@
 """カメラ画像受信用 API。"""
 
+from src.infrastructure.db.models.parking_lot import ParkingLot
+from src.infrastructure.db.models.parking_status import ParkingStatus
+
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -90,6 +93,7 @@ async def receive_camera_image(
         device = result.scalar_one_or_none()
 
         if device is not None:
+            
             detection_data: dict[str, Any] = {
                 "boxes": [b.model_dump() for b in boxes]
             }
@@ -152,3 +156,66 @@ async def get_latest_detection(
         logger.warning("DB取得失敗: %s", exc)
 
     return _latest_detection
+
+class TripEventRequest(BaseModel):
+    direction: str  # "in" or "out"
+
+
+@router.post("/trip", status_code=status.HTTP_200_OK)
+async def record_trip_event(
+    body: TripEventRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """自転車の通過イベントを受信し、駐輪場の空き台数を更新する。"""
+    try:
+        # デバイスから parking_lot_id を取得
+        device_result = await db.execute(
+            select(Device).where(Device.name == _DEVICE_NAME)
+        )
+        device = device_result.scalar_one_or_none()
+        if device is None:
+            raise HTTPException(status_code=404, detail="Device not found")
+
+        # parking_lot を取得
+        lot_result = await db.execute(
+            select(ParkingLot).where(ParkingLot.id == device.parking_lot_id)
+        )
+        parking_lot = lot_result.scalar_one_or_none()
+        if parking_lot is None:
+            raise HTTPException(status_code=404, detail="Parking lot not found")
+
+        # parking_status を取得または作成
+        status_result = await db.execute(
+            select(ParkingStatus).where(
+                ParkingStatus.parking_lot_id == device.parking_lot_id
+            )
+        )
+        parking_status = status_result.scalar_one_or_none()
+
+        if parking_status is None:
+            parking_status = ParkingStatus(
+                parking_lot_id=device.parking_lot_id,
+                available_spots=parking_lot.total_spots,
+                is_full=False,
+            )
+            db.add(parking_status)
+            await db.flush()
+
+        # 空き台数を更新
+        if body.direction == "in":
+            parking_status.available_spots = max(0, parking_status.available_spots - 1)
+        elif body.direction == "out":
+            parking_status.available_spots = min(
+                parking_lot.total_spots,
+                parking_status.available_spots + 1
+            )
+
+        parking_status.is_full = parking_status.available_spots == 0
+        await db.commit()
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("parking_status更新失敗: %s", exc)
+
+    return {"message": "ok"}
