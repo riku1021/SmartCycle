@@ -7,37 +7,34 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.infrastructure.db.models.device import Device
 from src.infrastructure.db.models.parking_lot import ParkingLot
 from src.infrastructure.db.models.parking_status import ParkingStatus
-from src.infrastructure.db.models.reservation import Reservation
-from src.infrastructure.db.models.user import User
 from src.infrastructure.logger.logger import logger
 
 
 async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -> None:
-    """ダッシュボード検証用の駐輪場、ステータス、デバイス、予約を冪等に投入する。"""
+    """ダッシュボード検証用の駐輪場、ステータス、デバイスを冪等に投入する。"""
     async with session_maker() as session:
         try:
-            # 駐輪場が既に存在するか確認
-            existing = await session.execute(select(ParkingLot).limit(1))
-            if existing.first() is not None:
-                logger.info("駐輪場関連データは既に投入済みのためスキップしました")
-                return
-
             now = datetime.now(UTC).replace(tzinfo=None)
 
-            # ユーザーIDの取得
-            user_user = (
-                await session.execute(select(User).where(User.email == "user@mail.com"))
-            ).scalar_one_or_none()
-
-            # 駐輪場の追加
             lots_data = [
-                ("グランフロント大阪 南館 駐輪場", 34.7042, 135.4946, 200, 100),
-                ("ヨドバシ梅田タワー 駐輪場", 34.7061, 135.4962, 150, 150),
-                ("大阪ステーションシティ 駐輪場", 34.7028, 135.4950, 100, 200),
-                ("梅田スカイビル 駐輪場", 34.7051, 135.4897, 80, 150),
+                ("梅田ステーション東", 34.7042, 135.4946, 200, 100, 180),
+                ("中之島ゲート", 34.7061, 135.4962, 150, 150, 2),
+                ("本町サイクルデッキ", 34.7028, 135.4950, 100, 200, 45),
             ]
-            lots = []
-            for name, lat, lng, spots, price in lots_data:
+            lots_by_name: dict[str, ParkingLot] = {}
+            inserted_lots = 0
+            inserted_statuses = 0
+            inserted_devices = 0
+
+            for name, lat, lng, spots, price, _available in lots_data:
+                existing_lot = await session.execute(
+                    select(ParkingLot).where(ParkingLot.name == name)
+                )
+                lot = existing_lot.scalar_one_or_none()
+                if lot is not None:
+                    lots_by_name[name] = lot
+                    continue
+
                 lot = ParkingLot(
                     id=uuid.uuid4(),
                     name=name,
@@ -47,78 +44,63 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                     price_per_hour=price,
                 )
                 session.add(lot)
-                lots.append(lot)
+                lots_by_name[name] = lot
+                inserted_lots += 1
             await session.flush()
 
-            # 駐輪場ステータスの追加
-            statuses_data = [
-                (lots[0].id, 180, lots[0].total_spots),  # 空き多数
-                (lots[1].id, 2, lots[1].total_spots),  # ほぼ満車
-                (lots[2].id, 45, lots[2].total_spots),  # 半分空き
-                (lots[3].id, 0, lots[3].total_spots),  # 満車
-            ]
-            for lot_id, available, total in statuses_data:
+            for name, _lat, _lng, _spots, _price, available in lots_data:
+                lot = lots_by_name[name]
+                existing_status = await session.execute(
+                    select(ParkingStatus).where(ParkingStatus.parking_lot_id == lot.id)
+                )
+                if existing_status.scalar_one_or_none() is not None:
+                    continue
                 session.add(
                     ParkingStatus(
-                        parking_lot_id=lot_id,
+                        parking_lot_id=lot.id,
                         available_spots=available,
-                        is_full=(available == 0 or available < total * 0.05),
+                        is_full=(available == 0 or available < lot.total_spots * 0.05),
                     )
                 )
+                inserted_statuses += 1
 
-            # デバイスの追加（1つは正常、1つは異常＝古すぎる）
-            session.add(
-                Device(
-                    parking_lot_id=lots[0].id,
-                    type="camera",
-                    name="カメラ1",
-                    last_seen_at=now - timedelta(minutes=5),  # 正常
-                )
-            )
-            session.add(
-                Device(
-                    parking_lot_id=lots[1].id,
-                    type="sensor",
-                    name="センサー1",
-                    last_seen_at=now - timedelta(days=2),  # 異常（古い）
-                )
-            )
-
-            # 予約の追加（activeなものをいくつか）
-            if user_user:
-                session.add(
-                    Reservation(
-                        user_id=user_user.id,
-                        parking_lot_id=lots[0].id,
-                        start_time=now - timedelta(hours=1),
-                        end_time=now + timedelta(hours=2),
-                        status="active",
-                        total_amount=300,
+            devices_data = [
+                (
+                    lots_by_name["梅田ステーション東"].id,
+                    "camera",
+                    "カメラ1",
+                    now - timedelta(minutes=5),
+                ),
+                (lots_by_name["中之島ゲート"].id, "sensor", "センサー1", now - timedelta(days=2)),
+            ]
+            for lot_id, device_type, device_name, last_seen_at in devices_data:
+                existing_device = await session.execute(
+                    select(Device).where(
+                        Device.parking_lot_id == lot_id,
+                        Device.type == device_type,
+                        Device.name == device_name,
                     )
                 )
+                if existing_device.scalar_one_or_none() is not None:
+                    continue
                 session.add(
-                    Reservation(
-                        user_id=user_user.id,
-                        parking_lot_id=lots[1].id,
-                        start_time=now - timedelta(minutes=30),
-                        end_time=now + timedelta(hours=1),
-                        status="active",
-                        total_amount=150,
+                    Device(
+                        parking_lot_id=lot_id,
+                        type=device_type,
+                        name=device_name,
+                        last_seen_at=last_seen_at,
                     )
                 )
-                session.add(
-                    Reservation(
-                        user_id=user_user.id,
-                        parking_lot_id=lots[2].id,
-                        start_time=now - timedelta(days=1),
-                        end_time=now - timedelta(hours=22),
-                        status="completed",
-                        total_amount=400,
-                    )
-                )
+                inserted_devices += 1
 
             await session.commit()
-            logger.info("ダッシュボード検証用のデータを投入しました")
+            if inserted_lots or inserted_statuses or inserted_devices:
+                logger.info(
+                    "ダッシュボード検証用のデータを投入/補完しました: "
+                    f"lots={inserted_lots} statuses={inserted_statuses} devices={inserted_devices}"
+                )
+            else:
+                logger.info("駐輪場関連データは既に最新のためスキップしました")
         except Exception:
             await session.rollback()
             raise

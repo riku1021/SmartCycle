@@ -2,7 +2,7 @@
 
 フロントエンドの詳細は [client/README.md](client/README.md)、バックエンドは [server/README.md](server/README.md) を参照してください。
 
-ローカル開発・動作確認で使うテストアカウント（管理者 / 開発者 / エンドユーザー）は [docs/ACOUNTS.md](docs/ACOUNTS.md) にまとめています。
+ローカル開発・動作確認で使うテストアカウント（管理者 / 開発者 / エンドユーザー）は [docs/ACCOUNTS.md](docs/ACCOUNTS.md) にまとめています。
 
 ## セットアップ
 
@@ -41,6 +41,8 @@ uv sync
 ```sh
 docker-compose up --build
 ```
+
+開発・検証用シードは `users` → `parking_lots` → `reservations` の順に投入します。`reservations` は `parking_lots` の UUID を参照するため、駐輪場マスタが未投入の場合は予約シードのみスキップされます。
 
 ### アクセス URL（フロントエンド）
 

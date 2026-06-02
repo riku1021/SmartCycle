@@ -10,6 +10,8 @@ from src.modules.camera.api import router as camera_router
 from src.modules.example.api import router as example_router
 from src.modules.health.api import router as health_router
 from src.modules.iot.api import router as iot_router
+from src.modules.parking_lots.api import router as parking_lots_router
+from src.modules.reservations.api import router as reservations_router
 
 
 def include_routers(app: FastAPI) -> None:
@@ -19,3 +21,5 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(example_router)
     app.include_router(health_router)
     app.include_router(iot_router)
+    app.include_router(parking_lots_router)
+    app.include_router(reservations_router)
