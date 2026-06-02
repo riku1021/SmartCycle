@@ -36,8 +36,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("データベース接続を初期化しました")
 
     # シードデータ投入
-    await seed_camera(get_session_maker())
-    logger.info("シードデータを投入しました")
+    try:
+        await seed_camera(get_session_maker())
+        logger.info("シードデータを投入しました")
+    except Exception as exc:
+        logger.error(f"シードデータ投入失敗: {exc}")
 
     try:
         yield

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -20,7 +21,16 @@ async def seed_camera(session_maker: async_sessionmaker[AsyncSession]) -> None:
         )
         parking_lot = result.scalar_one_or_none()
         if parking_lot is None:
-            return  # parking_lots が未投入の場合はスキップ
+            parking_lot = ParkingLot(
+                id=uuid.uuid7(),
+                name="梅田ステーション東",
+                latitude=34.7024,
+                longitude=135.4959,
+                total_spots=20,
+                price_per_hour=100,
+            )
+            session.add(parking_lot)
+            await session.flush()
 
         # devices の重複チェック
         device_result = await session.execute(
