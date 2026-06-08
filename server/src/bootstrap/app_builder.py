@@ -11,11 +11,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import load_settings
-from src.infrastructure.db.seed import seed_camera
+from src.infrastructure.db.seed import seed_dev_users, seed_parking_domain, seed_reservations, seed_camera
 from src.infrastructure.db.session import close_db, get_session_maker, init_db
 from src.infrastructure.http import setup_exception_handlers
 from src.infrastructure.logger.logger import logger
 from src.infrastructure.middleware import setup_middleware
+from src.modules.line.validation import warn_if_line_misconfigured
 
 from .router_registry import include_routers
 
@@ -32,15 +33,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # 設定を読み込み
     settings = load_settings()
     logger.info(f"サーバー設定: host={settings.host}, port={settings.port}")
+    warn_if_line_misconfigured(settings)
     init_db(settings.database_url)
     logger.info("データベース接続を初期化しました")
 
-    # シードデータ投入
-    try:
-        await seed_camera(get_session_maker())
-        logger.info("シードデータを投入しました")
-    except Exception as exc:
-        logger.error(f"シードデータ投入失敗: {exc}")
+    # 開発・検証用テストデータの自動投入 (冪等)
+    if settings.seed_dev_users:
+        logger.info("SEED_DEV_USERS=true のためテストデータの投入を試行します")
+        try:
+            await seed_dev_users(get_session_maker())
+            await seed_parking_domain(get_session_maker())
+            await seed_reservations(get_session_maker())
+            await seed_camera(get_session_maker())
+        except Exception:
+            logger.exception("テストデータの投入に失敗しました")
 
     try:
         yield

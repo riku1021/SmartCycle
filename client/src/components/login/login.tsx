@@ -1,18 +1,15 @@
-import {
-  Box,
-  Button,
-  Link as ChakraLink,
-  Flex,
-  Heading,
-  HStack,
-  Image,
-  Input,
-  Text,
-} from "@chakra-ui/react";
 import { useNavigate } from "@tanstack/react-router";
-import type { FC, FormEvent } from "react";
-import { useState } from "react";
-import { FaEnvelope, FaLock, FaUser } from "react-icons/fa6";
+import type { Map as LeafletMap } from "leaflet";
+import type { FC, FormEvent, KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  FaArrowRightToBracket,
+  FaBicycle,
+  FaEnvelope,
+  FaLock,
+  FaMagnifyingGlass,
+  FaUser,
+} from "react-icons/fa6";
 import { showErrorAlert } from "@/shared/alerts/alerts";
 import {
   getAuthErrorMessage,
@@ -38,11 +35,74 @@ function validateInputs(mode: "login" | "signup", email: string, password: strin
 
 const LoginComponent: FC = () => {
   const navigate = useNavigate();
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const leafletMapRef = useRef<LeafletMap | null>(null);
+
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // デフォルトでログインモーダルを表示
+  const [showModal, setShowModal] = useState(true);
+
+  // ゲスト用マップ初期化
+  useEffect(() => {
+    const mapEl = mapRef.current;
+    if (!mapEl) return;
+
+    // cancelled フラグ: クリーンアップ後の非同期コールバックを無効化
+    let cancelled = false;
+
+    import("leaflet").then((L) => {
+      // クリーンアップ済み または 既に初期化済みなら何もしない
+      if (cancelled) return;
+      if ((mapEl as HTMLElement & { _leaflet_id?: string })._leaflet_id) return;
+
+      const authMap = L.map(mapEl, { zoomControl: false }).setView([34.702485, 135.495951], 15);
+      leafletMapRef.current = authMap;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+      }).addTo(authMap);
+
+      // 駐輪場マーカー
+      const makePinIcon = (color: string, label: string) =>
+        L.divIcon({
+          className: "",
+          html: `<div style="
+            width:44px;height:44px;border-radius:50%;
+            border:3px solid #fff;
+            box-shadow:0 4px 10px rgba(0,0,0,0.25);
+            display:flex;flex-direction:column;justify-content:center;align-items:center;
+            color:#fff;font-weight:800;font-size:0.7rem;background:${color};
+            cursor:pointer;
+          ">${label}</div>`,
+          iconSize: [44, 44],
+          iconAnchor: [22, 44],
+        });
+
+      L.marker([34.69392, 135.5016], { icon: makePinIcon("#10b981", "空き") })
+        .addTo(authMap)
+        .bindPopup("北浜サイクルポート<br>空き: 12台");
+      L.marker([34.70631, 135.49887], { icon: makePinIcon("#f59e0b", "残少") })
+        .addTo(authMap)
+        .bindPopup("梅田ステーション東<br>空き: 5台");
+      L.marker([34.68462, 135.50213], { icon: makePinIcon("#ef4444", "満車") })
+        .addTo(authMap)
+        .bindPopup("本町サイクルデッキ<br>空き: 0台");
+    });
+
+    return () => {
+      // 非同期コールバックをキャンセル
+      cancelled = true;
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,16 +113,11 @@ const LoginComponent: FC = () => {
     }
     setIsSubmitting(true);
     try {
-      const role = await submitAuth({
-        mode,
-        email,
-        password,
-        name: name || undefined,
-      });
+      const role = await submitAuth({ mode, email, password, name: name || undefined });
       if (role === "admin") {
         await navigate({ to: "/dashboard" });
       } else {
-        await navigate({ to: "/" });
+        await navigate({ to: "/map" });
       }
     } catch (err: unknown) {
       if (mode === "login" && isEmailNotRegisteredError(err)) {
@@ -88,174 +143,221 @@ const LoginComponent: FC = () => {
   };
 
   return (
-    <Flex
-      align="center"
-      bgGradient="linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #c026d3 100%)"
-      direction="column"
-      inset={0}
-      justify="center"
-      position="fixed"
-      px={3}
-      py={6}
-      zIndex={2000}
-    >
-      <Flex
-        backdropFilter="blur(25px)"
-        bg="rgba(255, 255, 255, 0.15)"
-        border="1px solid rgba(255, 255, 255, 0.3)"
-        borderRadius={{ base: "24px", md: "40px" }}
-        boxShadow="0 40px 100px -20px rgba(0,0,0,0.4)"
-        h={{ base: "auto", md: "min(680px, 92vh)" }}
-        maxH={{ base: "92vh", md: "none" }}
-        maxW="1000px"
-        overflow="hidden"
-        w="90vw"
-      >
-        <Flex
-          align="center"
-          bg="rgba(0, 0, 0, 0.1)"
-          color="white"
-          direction="column"
-          display={{ base: "none", lg: "flex" }}
-          flex="1.2"
-          justify="center"
-          p={16}
-          textAlign="center"
+    <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
+      {/* ===== ゲスト用マップ（フルスクリーン背景） ===== */}
+      <div
+        ref={mapRef}
+        id="auth-map"
+        style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 0 }}
+      />
+
+      {/* ===== トップバー ===== */}
+      <div className="auth-top-bar" style={{ zIndex: 100 }}>
+        <div className="app-logo-small">
+          <FaBicycle style={{ fontSize: "1.4rem" }} />
+          <span>SmartCycle</span>
+        </div>
+        <button
+          type="button"
+          className="login-top-btn"
+          onClick={() => setShowModal(true)}
+          style={{ zIndex: 101 }}
         >
-          <Image alt="SmartCycle" aria-hidden boxSize="132px" mb={6} src="/SmartCycle.svg" />
-          <Heading fontSize="3rem" fontWeight={800} mb={2}>
-            SmartCycle
-          </Heading>
-          <Text fontSize="1.2rem" opacity={0.9}>
-            未来の駐輪体験を、今ここに。
-          </Text>
-        </Flex>
+          <FaUser style={{ display: "inline-block", marginRight: "4px" }} />
+          ログイン
+        </button>
+      </div>
 
-        <Flex
-          bg="white"
-          direction="column"
-          flex={1}
-          justify="center"
-          overflowY="auto"
-          p={{ base: 5, md: 10 }}
+      {/* ===== ゲストボトムパネル ===== */}
+      {!showModal && (
+        <div className="bottom-panel guest-panel" style={{ zIndex: 100 }}>
+          <div className="nearby-section">
+            <div className="nearby-header">
+              <div className="live-badge">
+                <span className="live-dot" />
+                リアルタイム更新
+              </div>
+              <span className="nearby-title">現在地周辺の駐輪場</span>
+            </div>
+            <div className="nearby-scroll">
+              <button
+                type="button"
+                className="nearby-item"
+                onClick={() => setShowModal(true)}
+                style={{
+                  cursor: "pointer",
+                  width: "100%",
+                  textAlign: "left",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                }}
+              >
+                <div>
+                  <div className="nearby-item-name">北浜サイクルポート</div>
+                  <div className="nearby-item-dist">徒歩 5分 · 120円/時間</div>
+                </div>
+                <span className="nearby-item-status" style={{ color: "#10b981" }}>
+                  空きあり
+                </span>
+              </button>
+              <button
+                type="button"
+                className="nearby-item"
+                onClick={() => setShowModal(true)}
+                style={{
+                  cursor: "pointer",
+                  width: "100%",
+                  textAlign: "left",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                }}
+              >
+                <div>
+                  <div className="nearby-item-name">梅田ステーション東</div>
+                  <div className="nearby-item-dist">徒歩 8分 · 100円/時間</div>
+                </div>
+                <span className="nearby-item-status" style={{ color: "#f59e0b" }}>
+                  残りわずか
+                </span>
+              </button>
+              <button
+                type="button"
+                className="nearby-item"
+                onClick={() => setShowModal(true)}
+                style={{
+                  cursor: "pointer",
+                  width: "100%",
+                  textAlign: "left",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                }}
+              >
+                <div>
+                  <div className="nearby-item-name">本町サイクルデッキ</div>
+                  <div className="nearby-item-dist">徒歩 3分 · 80円/時間</div>
+                </div>
+                <span className="nearby-item-status" style={{ color: "#ef4444" }}>
+                  満車
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* 目的地検索バー */}
+          <button
+            type="button"
+            className="destination-bar"
+            onClick={() => setShowModal(true)}
+            style={{
+              cursor: "pointer",
+              width: "100%",
+              textAlign: "left",
+              background: "none",
+              border: "none",
+            }}
+          >
+            <FaMagnifyingGlass style={{ color: "#94a3b8" }} />
+            <input
+              type="text"
+              placeholder="ログインして目的地・駐輪場を検索..."
+              readOnly
+              style={{ cursor: "pointer", pointerEvents: "none" }}
+            />
+          </button>
+        </div>
+      )}
+
+      {/* ===== ログインモーダル ===== */}
+      {showModal && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{ zIndex: 2000 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
+          onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+            if (e.key === "Escape") setShowModal(false);
+          }}
         >
-          <HStack borderBottom="2px solid #f1f5f9" gap={6} mb={6}>
-            <Button
-              borderBottom={mode === "login" ? "2px solid #4f46e5" : "2px solid transparent"}
-              borderRadius={0}
-              color={mode === "login" ? "#4f46e5" : "#64748b"}
-              fontWeight={700}
-              onClick={() => setMode("login")}
-              px={0}
-              variant="ghost"
-            >
-              ログイン
-            </Button>
-            <Button
-              borderBottom={mode === "signup" ? "2px solid #4f46e5" : "2px solid transparent"}
-              borderRadius={0}
-              color={mode === "signup" ? "#4f46e5" : "#64748b"}
-              fontWeight={700}
-              onClick={() => setMode("signup")}
-              px={0}
-              variant="ghost"
-            >
-              新規登録
-            </Button>
-          </HStack>
+          <div className="login-modal-sheet">
+            <div className="modal-handle" />
+            <div className="login-modal-header">
+              <div className="login-logo">
+                <FaBicycle />
+              </div>
+              <h2>SmartCycle</h2>
+              <p>未来の駐輪体験を、今ここに。</p>
+            </div>
 
-          <Box>
-            {mode === "login" ? (
-              <Box>
-                <Heading fontSize={{ base: "1.75rem", md: "2.4rem" }} mb={3}>
-                  おかえりなさい
-                </Heading>
-                <Text color="#64748b" mb={8}>
-                  アカウント情報を入力してログインしてください。
-                </Text>
-              </Box>
-            ) : (
-              <Box>
-                <Heading fontSize={{ base: "1.75rem", md: "2.4rem" }} mb={3}>
-                  はじめまして
-                </Heading>
-                <Text color="#64748b" mb={8}>
-                  わずか数秒で、次世代の駐輪ライフが始まります。
-                </Text>
-              </Box>
-            )}
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={`auth-tab ${mode === "login" ? "active" : ""}`}
+                onClick={() => setMode("login")}
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                ログイン
+              </button>
+              <button
+                type="button"
+                className={`auth-tab ${mode === "signup" ? "active" : ""}`}
+                onClick={() => setMode("signup")}
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                新規登録
+              </button>
+            </div>
 
-            <form noValidate onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="login-modal-form" noValidate>
               {mode === "signup" && (
-                <Box mb={5}>
-                  <Text
-                    alignItems="center"
-                    color="#64748b"
-                    display="flex"
-                    fontWeight={600}
-                    gap={1.5}
-                    mb={2}
-                  >
-                    <FaUser aria-hidden />
+                <div className="form-group">
+                  <label htmlFor="auth-name">
+                    <FaUser style={{ display: "inline-block", marginRight: "6px" }} />
                     表示名（任意）
-                  </Text>
-                  <Input
-                    _focusVisible={{ borderColor: "#4f46e5", bg: "white" }}
-                    bg="#f8fafc"
+                  </label>
+                  <input
+                    type="text"
                     id="auth-name"
+                    className="modern-input"
                     autoComplete="name"
                     placeholder="やまだ たろう"
                     value={name}
                     onChange={(ev) => setName(ev.target.value)}
                   />
-                </Box>
+                </div>
               )}
 
-              <Box mb={5}>
-                <Text
-                  alignItems="center"
-                  color="#64748b"
-                  display="flex"
-                  fontWeight={600}
-                  gap={1.5}
-                  mb={2}
-                >
-                  <FaEnvelope aria-hidden />
+              <div className="form-group">
+                <label htmlFor="auth-email">
+                  <FaEnvelope style={{ display: "inline-block", marginRight: "6px" }} />
                   メールアドレス
-                </Text>
-                <Input
-                  _focusVisible={{ borderColor: "#4f46e5", bg: "white" }}
-                  bg="#f8fafc"
-                  id="auth-email"
+                </label>
+                <input
                   type="email"
+                  id="auth-email"
+                  className="modern-input"
                   autoComplete="email"
                   placeholder="user@example.com"
                   required
                   value={email}
                   onChange={(ev) => setEmail(ev.target.value)}
                 />
-                <Text color="#64748b" fontSize="0.8rem" mt={2}>
-                  有効なメールアドレス形式で入力してください。
-                </Text>
-              </Box>
+              </div>
 
-              <Box mb={5}>
-                <Text
-                  alignItems="center"
-                  color="#64748b"
-                  display="flex"
-                  fontWeight={600}
-                  gap={1.5}
-                  mb={2}
-                >
-                  <FaLock aria-hidden />
+              <div className="form-group">
+                <label htmlFor="auth-password">
+                  <FaLock style={{ display: "inline-block", marginRight: "6px" }} />
                   パスワード
-                </Text>
-                <Input
-                  _focusVisible={{ borderColor: "#4f46e5", bg: "white" }}
-                  bg="#f8fafc"
-                  id="auth-password"
+                </label>
+                <input
                   type="password"
+                  id="auth-password"
+                  className="modern-input"
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   placeholder="••••••••"
                   required
@@ -263,59 +365,25 @@ const LoginComponent: FC = () => {
                   value={password}
                   onChange={(ev) => setPassword(ev.target.value)}
                 />
-                <Text color="#64748b" fontSize="0.8rem" mt={2}>
-                  {mode === "signup"
-                    ? "6〜256文字で入力してください。英字・数字・記号の組み合わせを推奨します。"
-                    : "1〜256文字で入力してください。"}
-                </Text>
-              </Box>
+              </div>
 
-              <Button
-                bg="#4f46e5"
-                color="white"
-                disabled={isSubmitting}
-                mt={2}
-                size="lg"
-                type="submit"
-                w="full"
-              >
+              <button type="submit" className="primary-btn" disabled={isSubmitting}>
+                <FaArrowRightToBracket style={{ display: "inline-block" }} />
                 {isSubmitting
                   ? "処理中…"
                   : mode === "login"
                     ? "ログインしてはじめる"
                     : "新規登録してはじめる"}
-              </Button>
+              </button>
 
-              {mode === "signup" && (
-                <Text color="#64748b" fontSize="0.85rem" mt={5} textAlign="center">
-                  登録することで、
-                  <ChakraLink color="#4f46e5" fontWeight={600} href="#terms">
-                    利用規約
-                  </ChakraLink>
-                  と
-                  <ChakraLink color="#4f46e5" fontWeight={600} href="#privacy">
-                    プライバシーポリシー
-                  </ChakraLink>
-                  に同意したことになります。
-                </Text>
-              )}
+              <button type="button" className="guest-skip-btn" onClick={() => setShowModal(false)}>
+                ゲストとして続ける
+              </button>
             </form>
-          </Box>
-        </Flex>
-      </Flex>
-
-      <HStack mt={6}>
-        <Button
-          color="rgba(255,255,255,0.9)"
-          fontWeight={600}
-          onClick={() => void navigate({ to: "/" })}
-          textDecoration="underline"
-          variant="plain"
-        >
-          トップへ
-        </Button>
-      </HStack>
-    </Flex>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

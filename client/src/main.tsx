@@ -1,3 +1,4 @@
+import "@/index.css";
 import "@/config/env";
 import { ChakraProvider } from "@chakra-ui/react";
 import { createRouter, RouterProvider } from "@tanstack/react-router";

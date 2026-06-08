@@ -98,11 +98,30 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=60 * 24, alias="JWT_EXPIRE_MINUTES")
 
+    # 開発・検証用のテストアカウント (admin / dev / user) を起動時に冪等投入するか
+    # 本番環境では必ず False のままにすること
+    seed_dev_users: bool = Field(default=False, alias="SEED_DEV_USERS")
+
+    # LINE Messaging API（未設定の場合は通知をスキップ）
+    line_channel_access_token: str | None = Field(
+        default=None,
+        alias="LINE_CHANNEL_ACCESS_TOKEN",
+    )
+    # true: 公式アカウントの友だち全員へブロードキャスト（推奨）
+    # false: LINE_NOTIFY_USER_IDS に列挙したユーザーへ個別プッシュ
+    line_use_broadcast: bool = Field(default=True, alias="LINE_USE_BROADCAST")
+    # LINE_USE_BROADCAST=false のときのみ使用（カンマ区切り、例: Uxxx,Uyyy）
+    line_notify_user_ids_raw: str = Field(default="", alias="LINE_NOTIFY_USER_IDS")
+
     model_config = SettingsConfigDict(
         env_file=None,  # load_settings()で動的に設定
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
+
+    @property
+    def line_notify_user_ids(self) -> list[str]:
+        return [uid.strip() for uid in self.line_notify_user_ids_raw.split(",") if uid.strip()]
 
     def get_server_config(self) -> ServerConfig:
         """サーバー設定を取得
@@ -185,6 +204,7 @@ def load_settings() -> Settings:
             "DATABASE_URL",
             "JWT_SECRET",
         )
+        # SEED_DEV_USERS は任意設定 (デフォルト False) のため required には含めない
         missing_keys = [key for key in required_env_keys if key not in os.environ]
         if missing_keys:
             joined = ", ".join(missing_keys)
