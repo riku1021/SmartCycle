@@ -32,33 +32,48 @@ async def seed_camera(session_maker: async_sessionmaker[AsyncSession]) -> None:
             session.add(parking_lot)
             await session.flush()
 
-        # devices の重複チェック
-        device_result = await session.execute(
+        # ゲートカメラデバイス
+        gate_device_result = await session.execute(
             select(Device).where(Device.name == "開発用カメラ-梅田東")
         )
-        existing_device = device_result.scalar_one_or_none()
-        if existing_device is not None:
-            device = existing_device
+        existing_gate_device = gate_device_result.scalar_one_or_none()
+        if existing_gate_device is not None:
+            gate_device = existing_gate_device
         else:
-            device = Device(
+            gate_device = Device(
                 id=uuid.uuid7(),
                 parking_lot_id=parking_lot.id,
-                type="camera",
+                type="gate_camera",
                 name="開発用カメラ-梅田東",
             )
-            session.add(device)
+            session.add(gate_device)
             await session.flush()
 
-        # camera_detections の重複チェック
+        # 俯瞰カメラデバイス
+        overhead_device_result = await session.execute(
+            select(Device).where(Device.name == "開発用俯瞰カメラ-梅田東")
+        )
+        existing_overhead_device = overhead_device_result.scalar_one_or_none()
+        if existing_overhead_device is None:
+            overhead_device = Device(
+                id=uuid.uuid7(),
+                parking_lot_id=parking_lot.id,
+                type="overhead_camera",
+                name="開発用俯瞰カメラ-梅田東",
+            )
+            session.add(overhead_device)
+            await session.flush()
+
+        # camera_detections の重複チェック（ゲートカメラ）
         detection_result = await session.execute(
-            select(CameraDetection).where(CameraDetection.device_id == device.id)
+            select(CameraDetection).where(CameraDetection.device_id == gate_device.id)
         )
         existing_detection = detection_result.scalar_one_or_none()
         if existing_detection is None:
             detection = CameraDetection(
                 id=uuid.uuid7(),
                 parking_lot_id=parking_lot.id,
-                device_id=device.id,
+                device_id=gate_device.id,
                 detected_count=2,
                 detection_data={
                     "boxes": [

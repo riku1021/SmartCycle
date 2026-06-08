@@ -1,29 +1,27 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import {
-  fetchLatestDetection,
-  type LatestDetectionResponse,
-  sendCameraFrame,
-  sendTripEvent,
-} from "@/api/camera";
+  fetchLatestOverheadDetection,
+  type LatestOverheadDetectionResponse,
+  sendOverheadCameraFrame,
+} from "@/api/overheadCamera";
 import Layout from "@/layouts/layout";
 
-const CameraComponent: FC = () => {
+const OverheadCamera: FC = () => {
   const POLLING_INTERVAL_MS = 500;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pollingIntervalRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const prevBoxCentersRef = useRef<Map<number, number>>(new Map());
-  const resetTimerRef = useRef<number | null>(null); // ← 追加
   const [isStreaming, setIsStreaming] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [cameraError, setCameraError] = useState<string>("");
   const [videoAspectRatio, setVideoAspectRatio] = useState<number>(16 / 9);
-  const [latestDetection, setLatestDetection] = useState<LatestDetectionResponse | null>(null);
+  const [latestDetection, setLatestDetection] = useState<LatestOverheadDetectionResponse | null>(
+    null
+  );
   const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 });
-  const [tripCount, setTripCount] = useState(0);
 
   const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current !== null) {
@@ -103,55 +101,11 @@ const CameraComponent: FC = () => {
   const sendCurrentFrame = useCallback(async () => {
     const frameBlob = await captureFrameBlob();
     if (!frameBlob) return;
-    await sendCameraFrame(frameBlob);
+    await sendOverheadCameraFrame(frameBlob);
   }, [captureFrameBlob]);
 
   const pollLatest = useCallback(async () => {
-    const latest = await fetchLatestDetection();
-
-    // トリップワイヤー判定（画像座標の中央 = videoWidth / 2）
-    const video = videoRef.current;
-    if (video && latest.boxes.length > 0) {
-      const lineX = video.videoWidth / 2;
-      latest.boxes.forEach((box, i) => {
-        const centerX = box.x + box.width / 2;
-        const prevCenterX = prevBoxCentersRef.current.get(i);
-        if (prevCenterX !== undefined) {
-          // 映像はscaleX(-1)で反転しているので左右が逆
-          // 画面上で左→右 = 画像座標で右→左
-          if (prevCenterX > lineX && centerX <= lineX) {
-            setTripCount((c) => c + 1);
-            void sendTripEvent("in");
-          }
-          if (prevCenterX <= lineX && centerX > lineX) {
-            setTripCount((c) => Math.max(0, c - 1));
-            void sendTripEvent("out");
-          }
-        }
-        prevBoxCentersRef.current.set(i, centerX);
-      });
-      if (latest.boxes.length < prevBoxCentersRef.current.size) {
-        for (let i = latest.boxes.length; i < prevBoxCentersRef.current.size; i++) {
-          prevBoxCentersRef.current.delete(i);
-        }
-      }
-    }
-
-    // 検出がなくなったら1秒後にキャッシュをリセット
-    if (latest.boxes.length === 0) {
-      if (resetTimerRef.current === null) {
-        resetTimerRef.current = window.setTimeout(() => {
-          prevBoxCentersRef.current.clear();
-          resetTimerRef.current = null;
-        }, 1000);
-      }
-    } else {
-      if (resetTimerRef.current !== null) {
-        window.clearTimeout(resetTimerRef.current);
-        resetTimerRef.current = null;
-      }
-    }
-
+    const latest = await fetchLatestOverheadDetection();
     setLatestDetection(latest);
   }, []);
 
@@ -191,10 +145,10 @@ const CameraComponent: FC = () => {
     const containerHeight = rect.height;
     const scaleX = containerWidth / (videoDimensions.width || video.videoWidth);
     const scaleY = containerHeight / (videoDimensions.height || video.videoHeight);
-    const lineX = containerWidth / 2;
 
     return (
       <svg
+        aria-hidden="true"
         style={{
           position: "absolute",
           top: 0,
@@ -206,18 +160,6 @@ const CameraComponent: FC = () => {
         }}
         viewBox={`0 0 ${containerWidth} ${containerHeight}`}
       >
-        <title>検出ボックスとトリップワイヤー</title>
-        {/* トリップワイヤー */}
-        <line
-          x1={lineX}
-          y1={0}
-          x2={lineX}
-          y2={containerHeight}
-          stroke="#ef4444"
-          strokeWidth={2}
-          strokeDasharray="8,4"
-        />
-
         {latestDetection.boxes.map((box, i) => (
           <g key={i}>
             <rect
@@ -244,35 +186,8 @@ const CameraComponent: FC = () => {
     );
   };
 
-  const renderTripwire = () => {
-    if (!isStreaming) return null;
-    return (
-      <svg
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-        }}
-      >
-        <title>トリップワイヤー</title>
-        <line
-          x1="50%"
-          y1="0"
-          x2="50%"
-          y2="100%"
-          stroke="#ef4444"
-          strokeWidth={2}
-          strokeDasharray="8,4"
-        />
-      </svg>
-    );
-  };
-
   return (
-    <Layout subtitle="HTTP Polling" title="カメラ画像">
+    <Layout subtitle="HTTP Polling" title="俯瞰カメラ">
       <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="16px" p={6}>
         <Box position="relative" mx="auto" maxW="805px" ref={containerRef}>
           <chakra.video
@@ -287,7 +202,6 @@ const CameraComponent: FC = () => {
             w="100%"
             display="block"
           />
-          {renderTripwire()}
           {renderBoxes()}
         </Box>
 
@@ -327,10 +241,11 @@ const CameraComponent: FC = () => {
             通信: {isPolling ? `実行中（${POLLING_INTERVAL_MS / 1000}秒間隔）` : "停止中"}
           </Badge>
           <Badge bg="#ede9fe" borderRadius="full" color="#5b21b6" px={3} py={1.5}>
-            最新検出数: {latestDetection?.detected_count ?? 0}
+            検出台数: {latestDetection?.detected_count ?? 0}
           </Badge>
-          <Badge bg="#fef9c3" borderRadius="full" color="#854d0e" px={3} py={1.5}>
-            通過台数: {tripCount}
+          <Badge bg="#dcfce7" borderRadius="full" color="#166534" px={3} py={1.5}>
+            空き台数: {latestDetection?.available_spots ?? "-"}
+            {latestDetection?.total_spots != null ? ` / ${latestDetection.total_spots}` : ""}
           </Badge>
         </Flex>
 
@@ -345,4 +260,4 @@ const CameraComponent: FC = () => {
   );
 };
 
-export default CameraComponent;
+export default OverheadCamera;
