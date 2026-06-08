@@ -13,13 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsersIndexRouteImport } from './routes/users/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReservationsIndexRouteImport } from './routes/reservations/index'
-import { Route as OverheadCameraIndexRouteImport } from './routes/overhead-camera/index'
 import { Route as MapIndexRouteImport } from './routes/map/index'
 import { Route as LotsIndexRouteImport } from './routes/lots/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
-import { Route as GateCameraIndexRouteImport } from './routes/gate-camera/index'
 import { Route as ExampleIndexRouteImport } from './routes/example/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as CameraIndexRouteImport } from './routes/camera/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,11 +40,6 @@ const ReservationsIndexRoute = ReservationsIndexRouteImport.update({
   path: '/reservations/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OverheadCameraIndexRoute = OverheadCameraIndexRouteImport.update({
-  id: '/overhead-camera/',
-  path: '/overhead-camera/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MapIndexRoute = MapIndexRouteImport.update({
   id: '/map/',
   path: '/map/',
@@ -61,11 +55,6 @@ const LoginIndexRoute = LoginIndexRouteImport.update({
   path: '/login/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GateCameraIndexRoute = GateCameraIndexRouteImport.update({
-  id: '/gate-camera/',
-  path: '/gate-camera/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ExampleIndexRoute = ExampleIndexRouteImport.update({
   id: '/example/',
   path: '/example/',
@@ -76,29 +65,32 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CameraIndexRoute = CameraIndexRouteImport.update({
+  id: '/camera/',
+  path: '/camera/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/camera/': typeof CameraIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/example/': typeof ExampleIndexRoute
-  '/gate-camera/': typeof GateCameraIndexRoute
   '/login/': typeof LoginIndexRoute
   '/lots/': typeof LotsIndexRoute
   '/map/': typeof MapIndexRoute
-  '/overhead-camera/': typeof OverheadCameraIndexRoute
   '/reservations/': typeof ReservationsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/users/': typeof UsersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/camera': typeof CameraIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/example': typeof ExampleIndexRoute
-  '/gate-camera': typeof GateCameraIndexRoute
   '/login': typeof LoginIndexRoute
   '/lots': typeof LotsIndexRoute
   '/map': typeof MapIndexRoute
-  '/overhead-camera': typeof OverheadCameraIndexRoute
   '/reservations': typeof ReservationsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/users': typeof UsersIndexRoute
@@ -106,13 +98,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/camera/': typeof CameraIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/example/': typeof ExampleIndexRoute
-  '/gate-camera/': typeof GateCameraIndexRoute
   '/login/': typeof LoginIndexRoute
   '/lots/': typeof LotsIndexRoute
   '/map/': typeof MapIndexRoute
-  '/overhead-camera/': typeof OverheadCameraIndexRoute
   '/reservations/': typeof ReservationsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/users/': typeof UsersIndexRoute
@@ -121,39 +112,36 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/camera/'
     | '/dashboard/'
     | '/example/'
-    | '/gate-camera/'
     | '/login/'
     | '/lots/'
     | '/map/'
-    | '/overhead-camera/'
     | '/reservations/'
     | '/settings/'
     | '/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/camera'
     | '/dashboard'
     | '/example'
-    | '/gate-camera'
     | '/login'
     | '/lots'
     | '/map'
-    | '/overhead-camera'
     | '/reservations'
     | '/settings'
     | '/users'
   id:
     | '__root__'
     | '/'
+    | '/camera/'
     | '/dashboard/'
     | '/example/'
-    | '/gate-camera/'
     | '/login/'
     | '/lots/'
     | '/map/'
-    | '/overhead-camera/'
     | '/reservations/'
     | '/settings/'
     | '/users/'
@@ -161,13 +149,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CameraIndexRoute: typeof CameraIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   ExampleIndexRoute: typeof ExampleIndexRoute
-  GateCameraIndexRoute: typeof GateCameraIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   LotsIndexRoute: typeof LotsIndexRoute
   MapIndexRoute: typeof MapIndexRoute
-  OverheadCameraIndexRoute: typeof OverheadCameraIndexRoute
   ReservationsIndexRoute: typeof ReservationsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   UsersIndexRoute: typeof UsersIndexRoute
@@ -203,13 +190,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReservationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/overhead-camera/': {
-      id: '/overhead-camera/'
-      path: '/overhead-camera'
-      fullPath: '/overhead-camera/'
-      preLoaderRoute: typeof OverheadCameraIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/map/': {
       id: '/map/'
       path: '/map'
@@ -231,13 +211,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/gate-camera/': {
-      id: '/gate-camera/'
-      path: '/gate-camera'
-      fullPath: '/gate-camera/'
-      preLoaderRoute: typeof GateCameraIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/example/': {
       id: '/example/'
       path: '/example'
@@ -252,18 +225,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/camera/': {
+      id: '/camera/'
+      path: '/camera'
+      fullPath: '/camera/'
+      preLoaderRoute: typeof CameraIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CameraIndexRoute: CameraIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   ExampleIndexRoute: ExampleIndexRoute,
-  GateCameraIndexRoute: GateCameraIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   LotsIndexRoute: LotsIndexRoute,
   MapIndexRoute: MapIndexRoute,
-  OverheadCameraIndexRoute: OverheadCameraIndexRoute,
   ReservationsIndexRoute: ReservationsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   UsersIndexRoute: UsersIndexRoute,

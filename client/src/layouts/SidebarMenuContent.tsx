@@ -22,15 +22,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
   const canViewGeneralUserPages = !isAdmin;
 
   const handleMove = async (
-    to:
-      | "/dashboard"
-      | "/users"
-      | "/map"
-      | "/lots"
-      | "/reservations"
-      | "/gate-camera"
-      | "/overhead-camera"
-      | "/settings"
+    to: "/dashboard" | "/users" | "/map" | "/lots" | "/reservations" | "/camera" | "/settings"
   ) => {
     await navigate({ to });
     onItemClick?.();
@@ -185,47 +177,22 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
         {canViewCamera ? (
           <Button
             alignItems="center"
-            bg={isActivePath("/gate-camera") ? "#4f46e5" : "transparent"}
+            bg={isActivePath("/camera") ? "#4f46e5" : "transparent"}
             borderRadius="12px"
-            boxShadow={
-              isActivePath("/gate-camera") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
-            }
-            color={isActivePath("/gate-camera") ? "#ffffff" : "#64748b"}
+            boxShadow={isActivePath("/camera") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
+            color={isActivePath("/camera") ? "#ffffff" : "#64748b"}
             display="flex"
             fontWeight={600}
             gap={2.5}
             justifyContent="flex-start"
-            onClick={() => void handleMove("/gate-camera")}
+            onClick={() => void handleMove("/camera")}
             px={4}
             py={3}
             variant="ghost"
-            _hover={{ bg: isActivePath("/gate-camera") ? "#4338ca" : "rgba(79, 70, 229, 0.1)" }}
+            _hover={{ bg: isActivePath("/camera") ? "#4338ca" : "rgba(79, 70, 229, 0.1)" }}
           >
             <FaCamera />
-            ゲートカメラ
-          </Button>
-        ) : null}
-        {canViewCamera ? (
-          <Button
-            alignItems="center"
-            bg={isActivePath("/overhead-camera") ? "#4f46e5" : "transparent"}
-            borderRadius="12px"
-            boxShadow={
-              isActivePath("/overhead-camera") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
-            }
-            color={isActivePath("/overhead-camera") ? "#ffffff" : "#64748b"}
-            display="flex"
-            fontWeight={600}
-            gap={2.5}
-            justifyContent="flex-start"
-            onClick={() => void handleMove("/overhead-camera")}
-            px={4}
-            py={3}
-            variant="ghost"
-            _hover={{ bg: isActivePath("/overhead-camera") ? "#4338ca" : "rgba(79, 70, 229, 0.1)" }}
-          >
-            <FaCamera />
-            俯瞰カメラ
+            カメラ画像
           </Button>
         ) : null}
         <Button
