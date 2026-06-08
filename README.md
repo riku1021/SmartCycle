@@ -59,9 +59,11 @@ docker-compose down
 
 ## カメラ検出機能（自転車検出）
 
-YOLOv8 を使ってカメラ映像から自転車を検出します。
+YOLOv8 を使ってカメラ映像から自転車を検出します。ゲートカメラと俯瞰カメラの2種類があります。
 
-### 手動確認手順
+### ゲートカメラ（入退場検知）
+
+ゲートに設置し、トリップワイヤーで自転車の通過を検知して空き台数を ±1 更新します。
 
 1. プロジェクトルートで起動
 
@@ -69,44 +71,42 @@ YOLOv8 を使ってカメラ映像から自転車を検出します。
 docker-compose up
 ```
 
-2. ブラウザで `http://localhost:3000` を開き、カメラ画面に移動
+2. ブラウザで `http://localhost:3000/gate-camera` を開く
 
-3. カメラに自転車を映す
+3. カメラに自転車を映し、中央の赤いラインを通過させる
 
-4. 以下のエンドポイントで検出結果を確認
+4. 検出結果を確認
 
 ```sh
-curl http://localhost:8000/camera/detections/latest
+curl http://localhost:8000/gate-camera/detections/latest
 ```
 
-以下のようなレスポンスが返れば成功：
+### 俯瞰カメラ（台数カウント）
 
-```json
-{
-  "detected_count": 1,
-  "boxes": [
-    {
-      "x": 139.5,
-      "y": 195.8,
-      "width": 385.8,
-      "height": 225.2,
-      "label": "bicycle",
-      "score": 0.88
-    }
-  ],
-  "received_at": "2026-05-12T01:47:05.446836+00:00",
-  "content_type": "image/jpeg",
-  "size_bytes": 64450
-}
+駐輪場内を俯瞰し、フレーム内の自転車台数から空き台数を直接更新します（`available_spots = total_spots - detected_count`）。
+
+1. ブラウザで `http://localhost:3000/overhead-camera` を開く
+
+2. 駐輪場内の自転車を映す
+
+3. 検出結果と空き台数を確認
+
+```sh
+curl http://localhost:8000/overhead-camera/detections/latest
+curl http://localhost:8000/api/parking-lots
 ```
+
+### 注意
+
+ゲートカメラ（trip ±1）と俯瞰カメラ（直接上書き）は同一駐輪場の `parking_statuses` を共有します。開発時はどちらか一方の画面のみ使用してください。
 
 ### 関連ファイル
 
-- `src/modules/camera/api.py` — エンドポイント定義
-- `src/modules/camera/service.py` — YOLOv8 推論ロジック
+- `server/src/modules/gate_camera/api.py` — ゲートカメラ API
+- `server/src/modules/overhead_camera/api.py` — 俯瞰カメラ API
+- `server/src/modules/camera/service.py` — YOLOv8 推論ロジック（共通）
 
 ### TODO
 
-- DB永続化（`camera_detections` テーブルへの書き込み）
 - モデル差し替え（`service.py` の `_MODEL_PATH` を変更）
 - 認証/署名検証強化

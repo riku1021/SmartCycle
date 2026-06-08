@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import CameraComponent from "@/components/camera/camera";
+import OverheadCamera from "@/components/overhead-camera/OverheadCamera";
 import { isDevUser } from "@/lib/adminRole";
 import { getAccessToken } from "@/lib/apiClient";
 
-export const Route = createFileRoute("/camera/")({
+export const Route = createFileRoute("/overhead-camera/")({
   beforeLoad: () => {
     if (!getAccessToken()) {
       throw redirect({ to: "/login" });
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/camera/")({
       throw redirect({ to: "/map" });
     }
   },
-  component: CameraComponent,
+  component: OverheadCamera,
 });
 
-export default CameraComponent;
+export default OverheadCamera;
