@@ -23,7 +23,13 @@ import { fetchParkingLots } from "@/api/parking-lots";
 import { fetchParkingStatus } from "@/api/parking-status";
 import { createReservation } from "@/api/reservations";
 import { isAdminOrDevUser } from "@/lib/adminRole";
-import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
+import {
+  applyEv3LotMetadata,
+  EV3_LINKED_PARKING_LOT_ID,
+  EV3_POLL_INTERVAL_MS,
+  EV3_TOTAL_SLOTS,
+  isEv3LinkedLot,
+} from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
 
@@ -54,9 +60,9 @@ const toApiDateTime = (date: Date) => {
 const INITIAL_LOTS: ParkingLot[] = [
   {
     id: "static-umeda-station-east",
-    name: "梅田ステーション東",
-    latitude: 34.70631,
-    longitude: 135.49887,
+    name: "グランフロント",
+    latitude: 34.7044,
+    longitude: 135.4946,
     available_spots: EV3_TOTAL_SLOTS,
     total_spots: EV3_TOTAL_SLOTS,
     price_per_hour: 100,
@@ -132,7 +138,7 @@ const NOTIFICATIONS = [
   {
     id: 3,
     title: "利用完了",
-    text: "梅田ステーション東の利用が完了しました。",
+    text: "グランフロントの利用が完了しました。",
     date: "昨日",
     unread: false,
   },
@@ -196,17 +202,24 @@ const MapComponent: FC = () => {
       try {
         const data = await fetchParkingLots();
         if (cancelled || data.length === 0) return;
-        setLots(
-          data.map((lot) => ({
-            id: lot.id,
-            name: lot.name,
-            latitude: lot.latitude,
-            longitude: lot.longitude,
-            available_spots: lot.available_spots,
-            total_spots: lot.total_spots,
-            price_per_hour: lot.price_per_hour,
-          }))
-        );
+        setLots((prev) => {
+          const ev3Available = prev.find(isEv3LinkedLot)?.available_spots;
+          return data.map((lot) => {
+            const mapped = applyEv3LotMetadata({
+              id: lot.id,
+              name: lot.name,
+              latitude: lot.latitude,
+              longitude: lot.longitude,
+              available_spots: lot.available_spots,
+              total_spots: lot.total_spots,
+              price_per_hour: lot.price_per_hour,
+            });
+            if (isEv3LinkedLot(mapped) && ev3Available !== undefined) {
+              return { ...mapped, available_spots: ev3Available };
+            }
+            return mapped;
+          });
+        });
       } catch {
         // バックエンド未起動時は INITIAL_LOTS の表示を維持
       }
@@ -227,8 +240,14 @@ const MapComponent: FC = () => {
         if (cancelled) return;
         setLots((prev) =>
           prev.map((lot) =>
-            lot.externalStatusId === EV3_LINKED_PARKING_LOT_ID
-              ? { ...lot, available_spots: data.available_count }
+            isEv3LinkedLot(lot)
+              ? {
+                  ...lot,
+                  available_spots: data.available_count,
+                  total_spots: EV3_TOTAL_SLOTS,
+                  isEv3Linked: true,
+                  externalStatusId: EV3_LINKED_PARKING_LOT_ID,
+                }
               : lot
           )
         );

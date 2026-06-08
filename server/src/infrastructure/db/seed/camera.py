@@ -15,18 +15,18 @@ from src.infrastructure.db.models.parking_lot import ParkingLot
 async def seed_camera(session_maker: async_sessionmaker[AsyncSession]) -> None:
     """devices と camera_detections のシードデータを投入する。"""
     async with session_maker() as session:
-        # 梅田ステーション東の parking_lot_id を取得
+        # グランフロントの parking_lot_id を取得
         result = await session.execute(
-            select(ParkingLot).where(ParkingLot.name == "梅田ステーション東")
+            select(ParkingLot).where(ParkingLot.name == "グランフロント")
         )
         parking_lot = result.scalar_one_or_none()
         if parking_lot is None:
             parking_lot = ParkingLot(
                 id=uuid.uuid7(),
-                name="梅田ステーション東",
-                latitude=34.7024,
-                longitude=135.4959,
-                total_spots=20,
+                name="グランフロント",
+                latitude=34.7044,
+                longitude=135.4946,
+                total_spots=3,
                 price_per_hour=100,
             )
             session.add(parking_lot)

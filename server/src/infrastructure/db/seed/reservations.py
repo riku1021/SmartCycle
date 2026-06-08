@@ -25,7 +25,7 @@ _RESERVATION_USER_EMAIL = "user@mail.com"
 
 _SEED_RESERVATIONS: tuple[_SeedReservation, ...] = (
     _SeedReservation(
-        parking_lot_name="梅田ステーション東",
+        parking_lot_name="グランフロント",
         start_time=datetime(2026, 5, 12, 9, 30),
         end_time=datetime(2026, 5, 12, 11, 30),
         status="active",
@@ -53,7 +53,7 @@ _SEED_RESERVATIONS: tuple[_SeedReservation, ...] = (
         total_amount=300,
     ),
     _SeedReservation(
-        parking_lot_name="梅田ステーション東",
+        parking_lot_name="グランフロント",
         start_time=datetime(2026, 4, 18, 13, 20),
         end_time=datetime(2026, 4, 18, 14, 20),
         status="completed",

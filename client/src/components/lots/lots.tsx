@@ -20,7 +20,7 @@ type Lot = {
 const initialLots: Lot[] = [
   {
     id: EV3_LINKED_PARKING_LOT_ID,
-    name: "梅田ステーション東",
+    name: "グランフロント",
     status: "空きあり",
     walk: "徒歩 4分",
     isEv3Linked: true,
@@ -116,7 +116,7 @@ const LotsComponent: FC = () => {
         </Heading>
         <Text color="#64748b" fontSize="0.9rem" mb={3}>
           EV3 のポート 1 / 2 / 3 のタッチセンサー押下個数が、
-          「梅田ステーション東」の空き状況にリアルタイム反映されます。
+          「グランフロント」の空き状況（最大3台）にリアルタイム反映されます。
         </Text>
 
         <HStack gap={3} mb={2}>

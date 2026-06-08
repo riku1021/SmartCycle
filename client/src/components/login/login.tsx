@@ -86,9 +86,9 @@ const LoginComponent: FC = () => {
       L.marker([34.69392, 135.5016], { icon: makePinIcon("#10b981", "空き") })
         .addTo(authMap)
         .bindPopup("北浜サイクルポート<br>空き: 12台");
-      L.marker([34.70631, 135.49887], { icon: makePinIcon("#f59e0b", "残少") })
+      L.marker([34.7044, 135.4946], { icon: makePinIcon("#f59e0b", "残少") })
         .addTo(authMap)
-        .bindPopup("梅田ステーション東<br>空き: 5台");
+        .bindPopup("グランフロント<br>空き: 2台");
       L.marker([34.68462, 135.50213], { icon: makePinIcon("#ef4444", "満車") })
         .addTo(authMap)
         .bindPopup("本町サイクルデッキ<br>空き: 0台");
@@ -215,8 +215,8 @@ const LoginComponent: FC = () => {
                 }}
               >
                 <div>
-                  <div className="nearby-item-name">梅田ステーション東</div>
-                  <div className="nearby-item-dist">徒歩 8分 · 100円/時間</div>
+                  <div className="nearby-item-name">グランフロント</div>
+                  <div className="nearby-item-dist">徒歩 8分 · 100円/時間 · 最大3台</div>
                 </div>
                 <span className="nearby-item-status" style={{ color: "#f59e0b" }}>
                   残りわずか

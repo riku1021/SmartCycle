@@ -17,10 +17,21 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
             now = datetime.now(UTC).replace(tzinfo=None)
 
             lots_data = [
-                ("梅田ステーション東", 34.7042, 135.4946, 200, 100, 180),
+                ("グランフロント", 34.7044, 135.4946, 3, 100, 3),
                 ("中之島ゲート", 34.7061, 135.4962, 150, 150, 2),
                 ("本町サイクルデッキ", 34.7028, 135.4950, 100, 200, 45),
             ]
+
+            legacy_lot_result = await session.execute(
+                select(ParkingLot).where(ParkingLot.name == "梅田ステーション東")
+            )
+            legacy_lot = legacy_lot_result.scalar_one_or_none()
+            if legacy_lot is not None:
+                legacy_lot.name = "グランフロント"
+                legacy_lot.latitude = 34.7044
+                legacy_lot.longitude = 135.4946
+                legacy_lot.total_spots = 3
+
             lots_by_name: dict[str, ParkingLot] = {}
             inserted_lots = 0
             inserted_statuses = 0
@@ -32,6 +43,10 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                 )
                 lot = existing_lot.scalar_one_or_none()
                 if lot is not None:
+                    if lot.total_spots != spots or lot.latitude != lat or lot.longitude != lng:
+                        lot.total_spots = spots
+                        lot.latitude = lat
+                        lot.longitude = lng
                     lots_by_name[name] = lot
                     continue
 
@@ -66,7 +81,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
 
             devices_data = [
                 (
-                    lots_by_name["梅田ステーション東"].id,
+                    lots_by_name["グランフロント"].id,
                     "camera",
                     "カメラ1",
                     now - timedelta(minutes=5),

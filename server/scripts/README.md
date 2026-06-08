@@ -40,9 +40,10 @@ EV3_MAC=00:16:53:82:75:10 PARKING_LOT_ID=1 python scripts/ev3_touch_monitor.py
 | 変数名             | 説明                                          | デフォルト                |
 | ------------------ | --------------------------------------------- | ------------------------- |
 | `EV3_MAC`          | EV3 の Bluetooth MAC アドレス                  | `00:16:53:82:75:10`       |
-| `PARKING_LOT_ID`   | 更新対象の駐輪場 ID                            | `1` (梅田ステーション東) |
+| `PARKING_LOT_ID`   | 更新対象の駐輪場 ID                            | `1` (グランフロント) |
 | `API_BASE_URL`     | SmartCycle バックエンドのベース URL            | `http://localhost:8000`   |
 | `POLL_INTERVAL_SEC`| タッチセンサーの監視間隔 (秒)                  | `0.1`                     |
+| `API_TIMEOUT_SEC`  | API 送信のタイムアウト (秒)                    | `10.0`                    |
 
 ### LINE 通知（バックエンド側）
 

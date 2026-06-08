@@ -16,7 +16,7 @@ class ParkingLotMeta:
 PARKING_LOTS: dict[int, ParkingLotMeta] = {
     1: ParkingLotMeta(
         id=1,
-        name="梅田ステーション東",
+        name="グランフロント",
         total_spots=3,
         default_available=3,
         alternative_ids=(2, 4),

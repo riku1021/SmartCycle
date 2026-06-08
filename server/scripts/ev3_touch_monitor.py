@@ -20,9 +20,10 @@ SmartCycle バックエンドの駐輪場ステータスをリアルタイム更
 
 必要に応じて環境変数で挙動を変更可能:
   EV3_MAC            EV3 の Bluetooth MAC アドレス (例: "00:16:53:82:75:10")
-  PARKING_LOT_ID     更新対象の駐輪場 ID (デフォルト: 1 = 梅田ステーション東)
+  PARKING_LOT_ID     更新対象の駐輪場 ID (デフォルト: 1 = グランフロント)
   API_BASE_URL       SmartCycle バックエンドのベース URL (デフォルト: http://localhost:8000)
   POLL_INTERVAL_SEC  タッチセンサーの監視間隔 (秒、デフォルト 0.1)
+  API_TIMEOUT_SEC    API 送信のタイムアウト (秒、デフォルト 10.0)
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ EV3_MAC: str = os.environ.get("EV3_MAC", "00:16:53:82:75:10")
 PARKING_LOT_ID: int = int(os.environ.get("PARKING_LOT_ID", "1"))
 API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
 POLL_INTERVAL_SEC: float = float(os.environ.get("POLL_INTERVAL_SEC", "0.1"))
+API_TIMEOUT_SEC: float = float(os.environ.get("API_TIMEOUT_SEC", "10.0"))
 
 TOTAL_SLOTS: int = 3
 
@@ -69,7 +71,7 @@ def post_parking_status(available_count: int) -> None:
         "available_count": available_count,
     }
     try:
-        response = requests.post(url, json=payload, timeout=3.0)
+        response = requests.post(url, json=payload, timeout=API_TIMEOUT_SEC)
         response.raise_for_status()
     except requests.RequestException as err:
         print(f"[WARN] API 送信失敗: {err}", file=sys.stderr)
