@@ -15,7 +15,14 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
   const isAdmin = role === "admin";
   const isDev = role === "dev";
   const handleMove = async (
-    to: "/dashboard" | "/map" | "/lots" | "/reservations" | "/camera" | "/settings"
+    to:
+      | "/dashboard"
+      | "/map"
+      | "/lots"
+      | "/reservations"
+      | "/gate-camera"
+      | "/overhead-camera"
+      | "/settings"
   ) => {
     await navigate({ to });
   };
@@ -30,7 +37,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
       borderColor="#e2e8f0"
       bottom={0}
       display={{ base: "grid", md: "none" }}
-      gridTemplateColumns={isAdmin ? "repeat(2, 1fr)" : isDev ? "repeat(6, 1fr)" : "repeat(4, 1fr)"}
+      gridTemplateColumns={isAdmin ? "repeat(2, 1fr)" : isDev ? "repeat(7, 1fr)" : "repeat(4, 1fr)"}
       h="74px"
       left={0}
       position="fixed"
@@ -155,7 +162,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           _hover={{ bg: "transparent" }}
           alignItems="center"
           bg="transparent"
-          color={isActivePath("/camera") ? "#4f46e5" : "#64748b"}
+          color={isActivePath("/gate-camera") ? "#4f46e5" : "#64748b"}
           display="flex"
           flexDirection="column"
           fontSize="0.65rem"
@@ -165,7 +172,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           justifyContent="center"
           minH="unset"
           minW="unset"
-          onClick={() => void handleMove("/camera")}
+          onClick={() => void handleMove("/gate-camera")}
           px={0.5}
           py={1.5}
           rounded="none"
@@ -174,7 +181,35 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           <Box as="span" fontSize="1.3rem" lineHeight={1}>
             <FaCamera />
           </Box>
-          <Text as="span">カメラ</Text>
+          <Text as="span">ゲート</Text>
+        </Button>
+      ) : null}
+      {isDev ? (
+        <Button
+          _active={{ bg: "transparent" }}
+          _hover={{ bg: "transparent" }}
+          alignItems="center"
+          bg="transparent"
+          color={isActivePath("/overhead-camera") ? "#4f46e5" : "#64748b"}
+          display="flex"
+          flexDirection="column"
+          fontSize="0.65rem"
+          fontWeight={700}
+          gap={1}
+          h="full"
+          justifyContent="center"
+          minH="unset"
+          minW="unset"
+          onClick={() => void handleMove("/overhead-camera")}
+          px={0.5}
+          py={1.5}
+          rounded="none"
+          variant="ghost"
+        >
+          <Box as="span" fontSize="1.3rem" lineHeight={1}>
+            <FaCamera />
+          </Box>
+          <Text as="span">俯瞰</Text>
         </Button>
       ) : null}
       <Button
