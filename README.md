@@ -56,3 +56,57 @@ docker-compose up --build
 ```sh
 docker-compose down
 ```
+
+## カメラ検出機能（自転車検出）
+
+YOLOv8 を使ってカメラ映像から自転車を検出します。
+
+### 手動確認手順
+
+1. プロジェクトルートで起動
+
+```sh
+docker-compose up
+```
+
+2. ブラウザで `http://localhost:3000` を開き、カメラ画面に移動
+
+3. カメラに自転車を映す
+
+4. 以下のエンドポイントで検出結果を確認
+
+```sh
+curl http://localhost:8000/camera/detections/latest
+```
+
+以下のようなレスポンスが返れば成功：
+
+```json
+{
+  "detected_count": 1,
+  "boxes": [
+    {
+      "x": 139.5,
+      "y": 195.8,
+      "width": 385.8,
+      "height": 225.2,
+      "label": "bicycle",
+      "score": 0.88
+    }
+  ],
+  "received_at": "2026-05-12T01:47:05.446836+00:00",
+  "content_type": "image/jpeg",
+  "size_bytes": 64450
+}
+```
+
+### 関連ファイル
+
+- `src/modules/camera/api.py` — エンドポイント定義
+- `src/modules/camera/service.py` — YOLOv8 推論ロジック
+
+### TODO
+
+- DB永続化（`camera_detections` テーブルへの書き込み）
+- モデル差し替え（`service.py` の `_MODEL_PATH` を変更）
+- 認証/署名検証強化

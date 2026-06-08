@@ -1,19 +1,24 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
-import { fetchLatestDetection, type LatestDetectionResponse, sendCameraFrame } from "@/api/camera";
+import { fetchLatestDetection, type LatestDetectionResponse, sendCameraFrame, sendTripEvent } from "@/api/camera";
 import Layout from "@/layouts/layout";
 
 const CameraComponent: FC = () => {
-  const POLLING_INTERVAL_MS = 3000;
+  const POLLING_INTERVAL_MS = 500;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pollingIntervalRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const prevBoxCentersRef = useRef<Map<number, number>>(new Map());
+  const resetTimerRef = useRef<number | null>(null);  // ← 追加
   const [isStreaming, setIsStreaming] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [cameraError, setCameraError] = useState<string>("");
   const [videoAspectRatio, setVideoAspectRatio] = useState<number>(16 / 9);
   const [latestDetection, setLatestDetection] = useState<LatestDetectionResponse | null>(null);
+  const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 });
+  const [tripCount, setTripCount] = useState(0);
 
   const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current !== null) {
@@ -43,7 +48,6 @@ const CameraComponent: FC = () => {
       setCameraError("このブラウザはWebカメラ機能に対応していません。");
       return;
     }
-
     try {
       setCameraError("");
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -58,6 +62,7 @@ const CameraComponent: FC = () => {
           const videoHeight = videoRef.current?.videoHeight ?? 0;
           if (videoWidth > 0 && videoHeight > 0) {
             setVideoAspectRatio(videoWidth / videoHeight);
+            setVideoDimensions({ width: videoWidth, height: videoHeight });
           }
         };
         await videoRef.current.play();
@@ -71,26 +76,18 @@ const CameraComponent: FC = () => {
 
   useEffect(() => {
     void startCamera();
-    return () => {
-      stopCamera();
-    };
+    return () => { stopCamera(); };
   }, [startCamera, stopCamera]);
 
   const captureFrameBlob = useCallback(async (): Promise<Blob | null> => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
-      return null;
-    }
-
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) return null;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const context = canvas.getContext("2d");
-    if (!context) {
-      return null;
-    }
+    if (!context) return null;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
     return new Promise<Blob | null>((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85);
     });
@@ -98,16 +95,58 @@ const CameraComponent: FC = () => {
 
   const sendCurrentFrame = useCallback(async () => {
     const frameBlob = await captureFrameBlob();
-    if (!frameBlob) {
-      return;
-    }
+    if (!frameBlob) return;
     await sendCameraFrame(frameBlob);
   }, [captureFrameBlob]);
 
   const pollLatest = useCallback(async () => {
     const latest = await fetchLatestDetection();
+
+    // トリップワイヤー判定（画像座標の中央 = videoWidth / 2）
+    const video = videoRef.current;
+    if (video && latest.boxes.length > 0) {
+      const lineX = video.videoWidth / 2;
+      latest.boxes.forEach((box, i) => {
+        const centerX = box.x + box.width / 2;
+        const prevCenterX = prevBoxCentersRef.current.get(i);
+        if (prevCenterX !== undefined) {
+          // 映像はscaleX(-1)で反転しているので左右が逆
+          // 画面上で左→右 = 画像座標で右→左
+          if (prevCenterX > lineX && centerX <= lineX) {
+            setTripCount((c) => c + 1);
+            void sendTripEvent("in");
+          }
+          if (prevCenterX <= lineX && centerX > lineX) {
+            setTripCount((c) => Math.max(0, c - 1));
+            void sendTripEvent("out");
+          }
+        }
+        prevBoxCentersRef.current.set(i, centerX);
+      });
+      if (latest.boxes.length < prevBoxCentersRef.current.size) {
+        for (let i = latest.boxes.length; i < prevBoxCentersRef.current.size; i++) {
+          prevBoxCentersRef.current.delete(i);
+        }
+      }
+    }
+
+    // 検出がなくなったら1秒後にキャッシュをリセット
+    if (latest.boxes.length === 0) {
+      if (resetTimerRef.current === null) {
+        resetTimerRef.current = window.setTimeout(() => {
+          prevBoxCentersRef.current.clear();
+          resetTimerRef.current = null;
+        }, 1000);
+      }
+    } else {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
+      }
+    }
+
     setLatestDetection(latest);
-  }, []);
+  }, [sendTripEvent]);
 
   const runPollingCycle = useCallback(async () => {
     try {
@@ -121,41 +160,122 @@ const CameraComponent: FC = () => {
   }, [pollLatest, sendCurrentFrame, stopPolling]);
 
   useEffect(() => {
-    if (!isStreaming) {
-      stopPolling();
-      return;
-    }
-    if (pollingIntervalRef.current !== null) {
-      return;
-    }
-
+    if (!isStreaming) { stopPolling(); return; }
+    if (pollingIntervalRef.current !== null) return;
     setIsPolling(true);
     void runPollingCycle();
     pollingIntervalRef.current = window.setInterval(() => {
       void runPollingCycle();
     }, POLLING_INTERVAL_MS);
-
-    return () => {
-      stopPolling();
-    };
+    return () => { stopPolling(); };
   }, [isStreaming, runPollingCycle, stopPolling]);
+
+  const renderBoxes = () => {
+    if (!latestDetection?.boxes.length) return null;
+    const video = videoRef.current;
+    if (!video) return null;
+    const rect = video.getBoundingClientRect();
+    const containerWidth = rect.width;
+    const containerHeight = rect.height;
+    const scaleX = containerWidth / (videoDimensions.width || video.videoWidth);
+    const scaleY = containerHeight / (videoDimensions.height || video.videoHeight);
+    const lineX = containerWidth / 2;
+
+    return (
+      <svg
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          transform: "scaleX(-1)",
+          pointerEvents: "none",
+        }}
+        viewBox={`0 0 ${containerWidth} ${containerHeight}`}
+      >
+        {/* トリップワイヤー */}
+        <line
+          x1={lineX}
+          y1={0}
+          x2={lineX}
+          y2={containerHeight}
+          stroke="#ef4444"
+          strokeWidth={2}
+          strokeDasharray="8,4"
+        />
+
+        {latestDetection.boxes.map((box, i) => (
+          <g key={i}>
+            <rect
+              x={box.x * scaleX}
+              y={box.y * scaleY}
+              width={box.width * scaleX}
+              height={box.height * scaleY}
+              fill="none"
+              stroke="#22c55e"
+              strokeWidth={2}
+            />
+            <text
+              x={box.x * scaleX + 4}
+              y={box.y * scaleY - 4}
+              fill="#22c55e"
+              fontSize={12}
+              transform={`scale(-1, 1) translate(${-(box.x * scaleX + 4) * 2 - box.width * scaleX}, 0)`}
+            >
+              {box.label} {Math.round(box.score * 100)}%
+            </text>
+          </g>
+        ))}
+      </svg>
+    );
+  };
+
+const renderTripwire = () => {
+  if (!isStreaming) return null;
+  return (
+    <svg
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    >
+      <line
+        x1="50%"
+        y1="0"
+        x2="50%"
+        y2="100%"
+        stroke="#ef4444"
+        strokeWidth={2}
+        strokeDasharray="8,4"
+      />
+    </svg>
+  );
+};
 
   return (
     <Layout subtitle="HTTP Polling" title="カメラ画像">
       <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="16px" p={6}>
-        <chakra.video
-          aspectRatio={videoAspectRatio}
-          autoPlay
-          bg="#0f172a"
-          borderRadius="12px"
-          mx="auto"
-          maxW="805px"
-          objectFit="cover"
-          transform="scaleX(-1)"
-          muted
-          ref={videoRef}
-          w="100%"
-        />
+        <Box position="relative" mx="auto" maxW="805px" ref={containerRef}>
+          <chakra.video
+            aspectRatio={videoAspectRatio}
+            autoPlay
+            bg="#0f172a"
+            borderRadius="12px"
+            objectFit="cover"
+            transform="scaleX(-1)"
+            muted
+            ref={videoRef}
+            w="100%"
+            display="block"
+          />
+          {renderTripwire()}
+          {renderBoxes()}
+        </Box>
 
         <Flex
           alignItems="center"
@@ -194,6 +314,9 @@ const CameraComponent: FC = () => {
           </Badge>
           <Badge bg="#ede9fe" borderRadius="full" color="#5b21b6" px={3} py={1.5}>
             最新検出数: {latestDetection?.detected_count ?? 0}
+          </Badge>
+          <Badge bg="#fef9c3" borderRadius="full" color="#854d0e" px={3} py={1.5}>
+            通過台数: {tripCount}
           </Badge>
         </Flex>
 

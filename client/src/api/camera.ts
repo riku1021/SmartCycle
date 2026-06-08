@@ -29,3 +29,7 @@ export async function fetchLatestDetection(): Promise<LatestDetectionResponse> {
   const { data } = await apiClient.get<LatestDetectionResponse>("/camera/detections/latest");
   return data;
 }
+
+export async function sendTripEvent(direction: "in" | "out"): Promise<void> {
+  await apiClient.post("/camera/trip", { direction });
+}
