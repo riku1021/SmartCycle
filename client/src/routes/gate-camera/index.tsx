@@ -4,6 +4,11 @@ import { isDevUser } from "@/lib/adminRole";
 import { getAccessToken } from "@/lib/apiClient";
 
 export const Route = createFileRoute("/gate-camera/")({
+  validateSearch: (search: Record<string, unknown>): { parkingLotId?: string } => {
+    return {
+      parkingLotId: typeof search.parkingLotId === "string" ? search.parkingLotId : undefined,
+    };
+  },
   beforeLoad: () => {
     if (!getAccessToken()) {
       throw redirect({ to: "/login" });

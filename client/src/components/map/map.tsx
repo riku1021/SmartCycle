@@ -20,10 +20,9 @@ import {
   FaXmark,
 } from "react-icons/fa6";
 import { fetchParkingLots } from "@/api/parking-lots";
-import { fetchParkingStatus } from "@/api/parking-status";
 import { createReservation } from "@/api/reservations";
-import { isAdminOrDevUser } from "@/lib/adminRole";
-import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
+import { isAdminOrDevUser, isDevUser } from "@/lib/adminRole";
+import { EV3_LINKED_PARKING_LOT_ID, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
 
@@ -223,22 +222,41 @@ const MapComponent: FC = () => {
 
     const tick = async () => {
       try {
-        const data = await fetchParkingStatus(EV3_LINKED_PARKING_LOT_ID);
+        const data = await fetchParkingLots();
         if (cancelled) return;
-        setLots((prev) =>
-          prev.map((lot) =>
-            lot.externalStatusId === EV3_LINKED_PARKING_LOT_ID
-              ? { ...lot, available_spots: data.available_count }
-              : lot
-          )
-        );
+        setLots((prev) => {
+          // バックエンドから取得したデータで既存のロット情報を更新する
+          // DBにしかない新しいロットがあれば追加する
+          const newLots = [...prev];
+          for (const fetched of data) {
+            const idx = newLots.findIndex((l) => l.id === fetched.id);
+            if (idx >= 0) {
+              newLots[idx] = {
+                ...newLots[idx],
+                available_spots: fetched.available_spots,
+                total_spots: fetched.total_spots,
+              };
+            } else {
+              newLots.push({
+                id: fetched.id,
+                name: fetched.name,
+                latitude: fetched.latitude,
+                longitude: fetched.longitude,
+                available_spots: fetched.available_spots,
+                total_spots: fetched.total_spots,
+                price_per_hour: fetched.price_per_hour,
+              });
+            }
+          }
+          return newLots;
+        });
       } catch {
         // バックエンド未起動時は INITIAL_LOTS の表示を維持
       }
     };
 
     void tick();
-    const timer = window.setInterval(() => void tick(), EV3_POLL_INTERVAL_MS);
+    const timer = window.setInterval(() => void tick(), 3000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -907,6 +925,30 @@ const MapComponent: FC = () => {
               <FaMap /> 見取り図参照
             </button>
           </div>
+          {isDevUser() && (
+            <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "4px" }}>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  window.open(`/gate-camera?parkingLotId=${selectedLot?.id}`, "_blank")
+                }
+                style={{ fontSize: "0.8rem", padding: "6px" }}
+              >
+                ゲートカメラを開く
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  window.open(`/overhead-camera?parkingLotId=${selectedLot?.id}`, "_blank")
+                }
+                style={{ fontSize: "0.8rem", padding: "6px" }}
+              >
+                俯瞰カメラを開く
+              </button>
+            </div>
+          )}
           <button
             type="button"
             id="reserve-trigger-btn"

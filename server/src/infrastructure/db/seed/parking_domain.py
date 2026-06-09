@@ -17,9 +17,9 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
             now = datetime.now(UTC).replace(tzinfo=None)
 
             lots_data = [
-                ("梅田ステーション東", 34.7042, 135.4946, 200, 100, 180),
-                ("中之島ゲート", 34.7061, 135.4962, 150, 150, 2),
-                ("本町サイクルデッキ", 34.7028, 135.4950, 100, 200, 45),
+                ("梅田ステーション東", 34.70631, 135.49887, 200, 100, 180),
+                ("中之島ゲート", 34.69000, 135.49000, 150, 150, 2),
+                ("本町サイクルデッキ", 34.68462, 135.50213, 100, 200, 45),
             ]
             lots_by_name: dict[str, ParkingLot] = {}
             inserted_lots = 0

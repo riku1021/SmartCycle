@@ -1,4 +1,5 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
+import { useSearch } from "@tanstack/react-router";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchLatestOverheadDetection,
@@ -8,6 +9,7 @@ import {
 import Layout from "@/layouts/layout";
 
 const OverheadCamera: FC = () => {
+  const { parkingLotId } = useSearch({ strict: false }) as { parkingLotId?: string };
   const POLLING_INTERVAL_MS = 500;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -99,15 +101,17 @@ const OverheadCamera: FC = () => {
   }, []);
 
   const sendCurrentFrame = useCallback(async () => {
+    if (!parkingLotId) return;
     const frameBlob = await captureFrameBlob();
     if (!frameBlob) return;
-    await sendOverheadCameraFrame(frameBlob);
-  }, [captureFrameBlob]);
+    await sendOverheadCameraFrame(parkingLotId, frameBlob);
+  }, [captureFrameBlob, parkingLotId]);
 
   const pollLatest = useCallback(async () => {
-    const latest = await fetchLatestOverheadDetection();
+    if (!parkingLotId) return;
+    const latest = await fetchLatestOverheadDetection(parkingLotId);
     setLatestDetection(latest);
-  }, []);
+  }, [parkingLotId]);
 
   const runPollingCycle = useCallback(async () => {
     try {
@@ -185,6 +189,16 @@ const OverheadCamera: FC = () => {
       </svg>
     );
   };
+
+  if (!parkingLotId) {
+    return (
+      <Layout subtitle="HTTP Polling" title="俯瞰カメラ">
+        <Box bg="#fef2f2" borderRadius="10px" color="#dc2626" fontSize="1rem" p={6}>
+          Map画面から対象の駐輪場を選択して起動してください。
+        </Box>
+      </Layout>
+    );
+  }
 
   return (
     <Layout subtitle="HTTP Polling" title="俯瞰カメラ">
