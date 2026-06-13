@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/gate-camera", tags=["gate-camera"])
 
-_DEVICE_NAME = "開発用カメラ-梅田東"
-
 
 class CameraImageReceiveResponse(BaseModel):
     message: str
@@ -58,6 +56,7 @@ _latest_detection = LatestDetectionResponse(
 @router.post("/images", response_model=CameraImageReceiveResponse)
 async def receive_camera_image(
     request: Request,
+    parking_lot_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> CameraImageReceiveResponse:
     image_bytes = await request.body()
@@ -82,7 +81,11 @@ async def receive_camera_image(
         )
 
     try:
-        result = await db.execute(select(Device).where(Device.name == _DEVICE_NAME))
+        result = await db.execute(
+            select(Device).where(
+                Device.parking_lot_id == parking_lot_id, Device.type == "gate_camera"
+            )
+        )
         device = result.scalar_one_or_none()
 
         if device is not None:
@@ -117,11 +120,16 @@ async def receive_camera_image(
 
 @router.get("/detections/latest", response_model=LatestDetectionResponse)
 async def get_latest_detection(
+    parking_lot_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> LatestDetectionResponse:
     """最新の検出結果をDBから返す。DBに記録がなければメモリの値を返す。"""
     try:
-        device_result = await db.execute(select(Device).where(Device.name == _DEVICE_NAME))
+        device_result = await db.execute(
+            select(Device).where(
+                Device.parking_lot_id == parking_lot_id, Device.type == "gate_camera"
+            )
+        )
         device = device_result.scalar_one_or_none()
 
         if device is not None:
@@ -152,6 +160,7 @@ async def get_latest_detection(
 
 class TripEventRequest(BaseModel):
     direction: str  # "in" or "out"
+    parking_lot_id: str
 
 
 @router.post("/trip", status_code=status.HTTP_200_OK)
@@ -161,7 +170,11 @@ async def record_trip_event(
 ) -> dict[str, str]:
     """自転車の通過イベントを受信し、駐輪場の空き台数を更新する。"""
     try:
-        device_result = await db.execute(select(Device).where(Device.name == _DEVICE_NAME))
+        device_result = await db.execute(
+            select(Device).where(
+                Device.parking_lot_id == body.parking_lot_id, Device.type == "gate_camera"
+            )
+        )
         device = device_result.scalar_one_or_none()
         if device is None:
             raise HTTPException(status_code=404, detail="Device not found")
