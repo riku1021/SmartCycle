@@ -39,6 +39,20 @@ async def seed_camera(session_maker: async_sessionmaker[AsyncSession]) -> None:
             session.add(parking_lot)
             await session.flush()
 
+        # タッチセンサーデバイス (EV3)
+        touch_device_result = await session.execute(
+            select(Device).where(Device.name == "EV3タッチセンサー-梅田東")
+        )
+        if touch_device_result.scalar_one_or_none() is None:
+            touch_device = Device(
+                id=uuid.uuid7(),
+                parking_lot_id=parking_lot.id,
+                type="touch_sensor",
+                name="EV3タッチセンサー-梅田東",
+            )
+            session.add(touch_device)
+            await session.flush()
+
         # ゲートカメラデバイス
         gate_device_result = await session.execute(
             select(Device).where(Device.name == "開発用カメラ-梅田東")

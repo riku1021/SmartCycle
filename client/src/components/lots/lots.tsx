@@ -3,7 +3,7 @@ import axios from "axios";
 import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchParkingLots, type ParkingLotResponse } from "@/api/parking-lots";
-import { fetchParkingStatus, type ParkingStatus } from "@/api/parking-status";
+import type { ParkingStatus } from "@/api/parking-status";
 import { API_BASE_URL } from "@/config/env";
 import Layout from "@/layouts/layout";
 import { EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
@@ -18,17 +18,7 @@ type Lot = {
   isEv3Linked?: boolean;
 };
 
-const initialLots: Lot[] = [
-  {
-    id: "static-1",
-    name: "梅田ステーション東",
-    status: "空きあり",
-    walk: "徒歩 4分",
-    isEv3Linked: true,
-  },
-  { id: "static-2", name: "中之島ゲート", status: "残りわずか", walk: "徒歩 8分" },
-  { id: "static-3", name: "本町サイクルデッキ", status: "満車", walk: "徒歩 3分" },
-];
+const initialLots: Lot[] = [];
 
 const availableCountToStatus = (count: number): ParkingAvailability => {
   if (count <= 0) return "空きなし";
@@ -64,10 +54,11 @@ const LotsComponent: FC = () => {
         // APIデータからタッチセンサー連携の駐輪場を探す
         const touchSensorLot = lotsData.find((l) => l.availability_source_type === "touch_sensor");
         if (touchSensorLot) {
-          // IoT API はまだDB UUID化されていないため、暫定的に 1 を指定
-          const data = await fetchParkingStatus(1);
-          if (cancelled) return;
-          setEv3Status(data);
+          setEv3Status({
+            parking_lot_id: touchSensorLot.id,
+            available_spots: touchSensorLot.available_spots,
+            updated_at: touchSensorLot.updated_at,
+          });
         } else {
           setEv3Status(null);
         }
@@ -75,14 +66,6 @@ const LotsComponent: FC = () => {
         setFetchHint("");
       } catch (error) {
         if (cancelled) return;
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
-          setEv3Status(null);
-          setFetchError("");
-          setFetchHint(
-            "バックエンドに駐輪場 ID 1 のデータがまだありません。`server/scripts/ev3_touch_monitor.py` を起動すると初回 POST で表示されます（バックエンドは起動済みとみなします）。"
-          );
-          return;
-        }
         const detail =
           axios.isAxiosError(error) && typeof error.response?.data === "object"
             ? JSON.stringify(error.response.data)
@@ -107,7 +90,7 @@ const LotsComponent: FC = () => {
 
   const ev3Availability: ParkingAvailability | null = useMemo(() => {
     if (!ev3Status) return null;
-    return availableCountToStatus(ev3Status.available_count);
+    return availableCountToStatus(ev3Status.available_spots);
   }, [ev3Status]);
 
   const lots = useMemo<Lot[]>(() => {
@@ -138,7 +121,7 @@ const LotsComponent: FC = () => {
   }, [ev3Availability, apiLots]);
 
   const pressedCount =
-    ev3Status !== null ? Math.max(EV3_TOTAL_SLOTS - ev3Status.available_count, 0) : null;
+    ev3Status !== null ? Math.max(EV3_TOTAL_SLOTS - ev3Status.available_spots, 0) : null;
 
   return (
     <Layout title="駐輪場一覧" subtitle="条件でフィルタしながら駐輪場を探せます">
@@ -163,7 +146,7 @@ const LotsComponent: FC = () => {
           {ev3Status ? (
             <Text color="#64748b" fontSize="0.85rem">
               押下数: <b>{pressedCount}</b> / {EV3_TOTAL_SLOTS} / 空き:{" "}
-              <b>{ev3Status.available_count}</b> / 更新: {ev3Status.updated_at}
+              <b>{ev3Status.available_spots}</b> / 更新: {ev3Status.updated_at}
             </Text>
           ) : null}
         </HStack>

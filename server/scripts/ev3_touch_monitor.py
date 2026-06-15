@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 EV3_MAC: str = os.environ.get("EV3_MAC", "00:16:53:82:75:10")
-PARKING_LOT_ID: int = int(os.environ.get("PARKING_LOT_ID", "1"))
+PARKING_LOT_ID: str = os.environ.get("PARKING_LOT_ID", "00000000-0000-0000-0000-000000000001")
 API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
 POLL_INTERVAL_SEC: float = float(os.environ.get("POLL_INTERVAL_SEC", "0.1"))
 
@@ -66,7 +66,7 @@ def post_parking_status(available_count: int) -> None:
     url = f"{API_BASE_URL}/api/iot/parking-status"
     payload = {
         "parking_lot_id": PARKING_LOT_ID,
-        "available_count": available_count,
+        "available_spots": available_count,
     }
     try:
         response = requests.post(url, json=payload, timeout=3.0)
