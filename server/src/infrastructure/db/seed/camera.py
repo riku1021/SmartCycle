@@ -32,6 +32,7 @@ async def seed_camera(session_maker: async_sessionmaker[AsyncSession]) -> None:
                 name="梅田ステーション東",
                 latitude=34.7024,
                 longitude=135.4959,
+                availability_source_type="touch_sensor",
                 total_spots=20,
                 price_per_hour=100,
             )

@@ -18,6 +18,7 @@ class ParkingLotOut(BaseModel):
     name: str
     latitude: float
     longitude: float
+    availability_source_type: str
     available_spots: int
     total_spots: int
     price_per_hour: int
@@ -31,6 +32,7 @@ def _to_parking_lot_out(lot: ParkingLot, status_row: ParkingStatus | None) -> Pa
         name=lot.name,
         latitude=lot.latitude,
         longitude=lot.longitude,
+        availability_source_type=lot.availability_source_type,
         available_spots=status_row.available_spots if status_row is not None else lot.total_spots,
         total_spots=lot.total_spots,
         price_per_hour=lot.price_per_hour,

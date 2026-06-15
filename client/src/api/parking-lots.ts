@@ -8,6 +8,7 @@ export type ParkingLotResponse = {
   available_spots: number;
   total_spots: number;
   price_per_hour: number;
+  availability_source_type: string;
   created_at: string;
   updated_at: string;
 };

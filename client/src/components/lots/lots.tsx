@@ -2,15 +2,16 @@ import { Badge, Box, Button, Heading, HStack, SimpleGrid, Text } from "@chakra-u
 import axios from "axios";
 import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { fetchParkingLots, type ParkingLotResponse } from "@/api/parking-lots";
 import { fetchParkingStatus, type ParkingStatus } from "@/api/parking-status";
 import { API_BASE_URL } from "@/config/env";
 import Layout from "@/layouts/layout";
-import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
+import { EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 
 type ParkingAvailability = "空きあり" | "空きあり、残りわずか" | "空きなし";
 
 type Lot = {
-  id: number;
+  id: string;
   name: string;
   status: ParkingAvailability | string;
   walk: string;
@@ -19,14 +20,14 @@ type Lot = {
 
 const initialLots: Lot[] = [
   {
-    id: EV3_LINKED_PARKING_LOT_ID,
+    id: "static-1",
     name: "梅田ステーション東",
     status: "空きあり",
     walk: "徒歩 4分",
     isEv3Linked: true,
   },
-  { id: 2, name: "中之島ゲート", status: "残りわずか", walk: "徒歩 8分" },
-  { id: 3, name: "本町サイクルデッキ", status: "満車", walk: "徒歩 3分" },
+  { id: "static-2", name: "中之島ゲート", status: "残りわずか", walk: "徒歩 8分" },
+  { id: "static-3", name: "本町サイクルデッキ", status: "満車", walk: "徒歩 3分" },
 ];
 
 const availableCountToStatus = (count: number): ParkingAvailability => {
@@ -48,6 +49,7 @@ const statusColor = (status: string): { bg: string; color: string } => {
 const LotsComponent: FC = () => {
   const [ev3Status, setEv3Status] = useState<ParkingStatus | null>(null);
   const [fetchError, setFetchError] = useState("");
+  const [apiLots, setApiLots] = useState<ParkingLotResponse[]>([]);
   const [fetchHint, setFetchHint] = useState("");
 
   useEffect(() => {
@@ -55,9 +57,20 @@ const LotsComponent: FC = () => {
 
     const tick = async () => {
       try {
-        const data = await fetchParkingStatus(EV3_LINKED_PARKING_LOT_ID);
+        const lotsData = await fetchParkingLots();
         if (cancelled) return;
-        setEv3Status(data);
+        setApiLots(lotsData);
+
+        // APIデータからタッチセンサー連携の駐輪場を探す
+        const touchSensorLot = lotsData.find((l) => l.availability_source_type === "touch_sensor");
+        if (touchSensorLot) {
+          // IoT API はまだDB UUID化されていないため、暫定的に 1 を指定
+          const data = await fetchParkingStatus(1);
+          if (cancelled) return;
+          setEv3Status(data);
+        } else {
+          setEv3Status(null);
+        }
         setFetchError("");
         setFetchHint("");
       } catch (error) {
@@ -97,13 +110,32 @@ const LotsComponent: FC = () => {
     return availableCountToStatus(ev3Status.available_count);
   }, [ev3Status]);
 
-  const lots = useMemo<Lot[]>(
-    () =>
-      initialLots.map((lot) =>
-        lot.isEv3Linked && ev3Availability ? { ...lot, status: ev3Availability } : lot
-      ),
-    [ev3Availability]
-  );
+  const lots = useMemo<Lot[]>(() => {
+    if (apiLots.length > 0) {
+      return apiLots.map((lot) => {
+        const isEv3Linked = lot.availability_source_type === "touch_sensor";
+        let statusStr = "空きあり";
+        if (lot.available_spots <= 0) statusStr = "満車";
+        else if (lot.available_spots <= lot.total_spots * 0.2) statusStr = "残りわずか";
+
+        if (isEv3Linked && ev3Availability) {
+          statusStr = ev3Availability;
+        }
+
+        return {
+          id: lot.id,
+          name: lot.name,
+          status: statusStr,
+          walk: "徒歩 --分",
+          isEv3Linked,
+        };
+      });
+    }
+
+    return initialLots.map((lot) =>
+      lot.isEv3Linked && ev3Availability ? { ...lot, status: ev3Availability } : lot
+    );
+  }, [ev3Availability, apiLots]);
 
   const pressedCount =
     ev3Status !== null ? Math.max(EV3_TOTAL_SLOTS - ev3Status.available_count, 0) : null;
