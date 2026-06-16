@@ -1,5 +1,6 @@
 """IoT機器から駐輪場ステータスを受け取るAPI。"""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends
@@ -12,6 +13,7 @@ from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.models.device import Device
 from src.infrastructure.db.models.parking_lot import ParkingLot
 from src.infrastructure.db.models.parking_status import ParkingStatus
+from src.infrastructure.db.models.parking_status_history import ParkingStatusHistory
 from src.infrastructure.db.models.reservation import Reservation
 from src.infrastructure.db.session import get_db
 from src.modules.line.service import LineNotifier
@@ -20,29 +22,27 @@ router = APIRouter(prefix="/api", tags=["iot"])
 
 
 class ParkingStatusUpsertBody(BaseModel):
-    parking_lot_id: int = Field(gt=0)
-    available_count: int = Field(ge=0)
+    parking_lot_id: uuid.UUID
+    available_spots: int = Field(ge=0)
 
 
 class ParkingStatusResponse(BaseModel):
-    parking_lot_id: int
-    available_count: int
+    parking_lot_id: uuid.UUID
+    available_spots: int
     updated_at: str
 
 
-_latest_status_by_lot_id: dict[int, ParkingStatusResponse] = {}
-
-
-def _available_counts_snapshot() -> dict[int, int]:
-    return {lot_id: status.available_count for lot_id, status in _latest_status_by_lot_id.items()}
+async def _available_counts_snapshot(session: AsyncSession) -> dict[uuid.UUID, int]:
+    statuses = await session.execute(select(ParkingStatus))
+    return {status.parking_lot_id: status.available_spots for status in statuses.scalars()}
 
 
 async def _send_line_notification(
     settings: Settings,
-    parking_lot_id: int,
+    parking_lot_id: uuid.UUID,
     previous_available: int | None,
     new_available: int,
-    available_by_lot_id: dict[int, int],
+    available_by_lot_id: dict[uuid.UUID, int],
 ) -> None:
     notifier = LineNotifier(settings)
     await notifier.notify_status_change(
@@ -57,29 +57,72 @@ async def _send_line_notification(
 async def upsert_parking_status(
     body: ParkingStatusUpsertBody,
     background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ParkingStatusResponse:
-    # TODO: 認証・バリデーション強化（機器署名など）
-    # TODO: DB保存（履歴テーブル/最新テーブル分離）
-    # TODO: 異常値検知（負値、急激なジャンプなど）
-    previous = _latest_status_by_lot_id.get(body.parking_lot_id)
-    previous_available = previous.available_count if previous is not None else None
+    # 駐輪場の存在確認
+    lot = await session.get(ParkingLot, body.parking_lot_id)
+    if lot is None:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Parking lot not found",
+        )
+
+    # 現在のステータス取得
+    status_result = await session.execute(
+        select(ParkingStatus).where(ParkingStatus.parking_lot_id == body.parking_lot_id)
+    )
+    parking_status = status_result.scalar_one_or_none()
+
+    previous_available = parking_status.available_spots if parking_status else None
+
+    # ParkingStatus UPSERT
+    if parking_status is None:
+        parking_status = ParkingStatus(
+            parking_lot_id=body.parking_lot_id,
+            available_spots=body.available_spots,
+            is_full=body.available_spots == 0,
+        )
+        session.add(parking_status)
+    else:
+        parking_status.available_spots = body.available_spots
+        parking_status.is_full = body.available_spots == 0
+
+    # ParkingStatusHistory INSERT
+    history = ParkingStatusHistory(
+        parking_lot_id=body.parking_lot_id,
+        available_spots=body.available_spots,
+        timestamp=datetime.now(UTC).replace(tzinfo=None),
+    )
+    session.add(history)
+
+    # デバイス最終検知日時の更新 (touch_sensor)
+    device_result = await session.execute(
+        select(Device).where(
+            Device.parking_lot_id == body.parking_lot_id, Device.type == "touch_sensor"
+        )
+    )
+    device = device_result.scalar_one_or_none()
+    if device is not None:
+        device.last_seen_at = datetime.now(UTC).replace(tzinfo=None)
+
+    await session.commit()
 
     latest = ParkingStatusResponse(
         parking_lot_id=body.parking_lot_id,
-        available_count=body.available_count,
+        available_spots=body.available_spots,
         updated_at=datetime.now(UTC).isoformat(),
     )
-    _latest_status_by_lot_id[body.parking_lot_id] = latest
 
-    snapshot = _available_counts_snapshot()
-    snapshot[body.parking_lot_id] = body.available_count
+    snapshot = await _available_counts_snapshot(session)
     background_tasks.add_task(
         _send_line_notification,
         settings,
         body.parking_lot_id,
         previous_available,
-        body.available_count,
+        body.available_spots,
         snapshot,
     )
 
@@ -87,9 +130,21 @@ async def upsert_parking_status(
 
 
 @router.get("/parking-statuses", response_model=list[ParkingStatusResponse])
-async def list_parking_statuses() -> list[ParkingStatusResponse]:
+async def list_parking_statuses(
+    session: AsyncSession = Depends(get_db),
+) -> list[ParkingStatusResponse]:
     """すべての駐輪場の最新ステータスを取得"""
-    return list(_latest_status_by_lot_id.values())
+    statuses = await session.execute(select(ParkingStatus))
+    return [
+        ParkingStatusResponse(
+            parking_lot_id=status.parking_lot_id,
+            available_spots=status.available_spots,
+            updated_at=datetime.now(
+                UTC
+            ).isoformat(),  # DB上のupdated_atがあればそれを使うべきだが、モデルに無いので現在時刻か生成時刻
+        )
+        for status in statuses.scalars()
+    ]
 
 
 class DashboardSummaryResponse(BaseModel):
@@ -185,14 +240,34 @@ async def get_dashboard_summary(
 
 
 @router.get("/parking-statuses/{parking_lot_id}", response_model=ParkingStatusResponse)
-async def get_parking_status(parking_lot_id: int) -> ParkingStatusResponse:
-    # TODO: DBから最新状態を取得する実装に置き換える
-    latest = _latest_status_by_lot_id.get(parking_lot_id)
-    if latest is None:
-        # IoT からの初回 POST 前でもフロントがポーリングできるよう、既定値を返す
+async def get_parking_status(
+    parking_lot_id: uuid.UUID, session: AsyncSession = Depends(get_db)
+) -> ParkingStatusResponse:
+    from fastapi import HTTPException, status
+
+    # 駐輪場存在チェック
+    lot = await session.get(ParkingLot, parking_lot_id)
+    if lot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Parking lot not found",
+        )
+
+    # ステータス取得
+    status_result = await session.execute(
+        select(ParkingStatus).where(ParkingStatus.parking_lot_id == parking_lot_id)
+    )
+    parking_status = status_result.scalar_one_or_none()
+
+    if parking_status is None:
         return ParkingStatusResponse(
             parking_lot_id=parking_lot_id,
-            available_count=3,
+            available_spots=lot.total_spots,
             updated_at=datetime.now(UTC).isoformat(),
         )
-    return latest
+
+    return ParkingStatusResponse(
+        parking_lot_id=parking_lot_id,
+        available_spots=parking_status.available_spots,
+        updated_at=datetime.now(UTC).isoformat(),
+    )

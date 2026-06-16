@@ -17,7 +17,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
             now = datetime.now(UTC).replace(tzinfo=None)
 
             lots_data = [
-                ("梅田ステーション東", 34.70631, 135.49887, 200, 100, 180, "touch_sensor"),
+                ("梅田ステーション東", 34.70631, 135.49887, 3, 100, 3, "touch_sensor"),
                 ("中之島ゲート", 34.69000, 135.49000, 150, 150, 2, "overhead_camera"),
                 ("本町サイクルデッキ", 34.68462, 135.50213, 100, 200, 45, "gate_camera"),
             ]
@@ -35,8 +35,12 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                     lots_by_name[name] = lot
                     continue
 
+                lot_id = uuid.uuid4()
+                if name == "梅田ステーション東":
+                    lot_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
                 lot = ParkingLot(
-                    id=uuid.uuid4(),
+                    id=lot_id,
                     name=name,
                     latitude=lat,
                     longitude=lng,
