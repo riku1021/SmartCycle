@@ -17,16 +17,16 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
             now = datetime.now(UTC).replace(tzinfo=None)
 
             lots_data = [
-                ("梅田ステーション東", 34.70631, 135.49887, 200, 100, 180),
-                ("中之島ゲート", 34.69000, 135.49000, 150, 150, 2),
-                ("本町サイクルデッキ", 34.68462, 135.50213, 100, 200, 45),
+                ("梅田ステーション東", 34.70631, 135.49887, 200, 100, 180, "touch_sensor"),
+                ("中之島ゲート", 34.69000, 135.49000, 150, 150, 2, "overhead_camera"),
+                ("本町サイクルデッキ", 34.68462, 135.50213, 100, 200, 45, "gate_camera"),
             ]
             lots_by_name: dict[str, ParkingLot] = {}
             inserted_lots = 0
             inserted_statuses = 0
             inserted_devices = 0
 
-            for name, lat, lng, spots, price, _available in lots_data:
+            for name, lat, lng, spots, price, _available, source_type in lots_data:
                 existing_lot = await session.execute(
                     select(ParkingLot).where(ParkingLot.name == name)
                 )
@@ -40,6 +40,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                     name=name,
                     latitude=lat,
                     longitude=lng,
+                    availability_source_type=source_type,
                     total_spots=spots,
                     price_per_hour=price,
                 )
@@ -48,7 +49,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                 inserted_lots += 1
             await session.flush()
 
-            for name, _lat, _lng, _spots, _price, available in lots_data:
+            for name, _lat, _lng, _spots, _price, available, _source_type in lots_data:
                 lot = lots_by_name[name]
                 existing_status = await session.execute(
                     select(ParkingStatus).where(ParkingStatus.parking_lot_id == lot.id)
