@@ -1,7 +1,7 @@
 import { Box, Button } from "@chakra-ui/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
-import { FaCamera, FaGear, FaList, FaMapLocationDot, FaUsers } from "react-icons/fa6";
+import { FaCamera, FaGear, FaList, FaMapLocationDot, FaUser, FaUsers } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
 import { getUserRole } from "@/lib/adminRole";
 import { clearAccessToken } from "@/lib/apiClient";
@@ -37,18 +37,22 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
   };
 
   const handleLogout = async () => {
-    const result = await showConfirmationAlert(
-      "ログアウト確認",
-      "ログアウトしますか？",
-      "ログアウト",
-      "キャンセル"
-    );
-    if (!result.isConfirmed) {
-      return;
-    }
-    clearAccessToken();
-    await navigate({ to: "/login" });
-    onItemClick?.();
+    onItemClick?.(); // Drawerを先に閉じてフォーカストラップを解除する
+
+    // Drawerが閉じるのを少し待ってからアラートを出すと安全
+    setTimeout(async () => {
+      const result = await showConfirmationAlert(
+        "ログアウト確認",
+        "ログアウトしますか？",
+        "ログアウト",
+        "キャンセル"
+      );
+      if (!result.isConfirmed) {
+        return;
+      }
+      clearAccessToken();
+      await navigate({ to: "/login" });
+    }, 100);
   };
 
   return (
@@ -244,8 +248,8 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
           variant="ghost"
           _hover={{ bg: isActivePath("/settings") ? "#4338ca" : "rgba(79, 70, 229, 0.1)" }}
         >
-          <FaGear />
-          {isAdmin ? "アカウント管理" : "設定"}
+          {isAdmin ? <FaGear /> : <FaUser />}
+          {isAdmin ? "アカウント管理" : "MYページ"}
         </Button>
       </Box>
       <Box mt="auto" p={3} pb={5}>
