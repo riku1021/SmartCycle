@@ -10,18 +10,17 @@ import {
   FaCalendarCheck,
   FaChevronLeft,
   FaCircleCheck,
-  FaClockRotateLeft,
   FaLocationArrow,
   FaLocationCrosshairs,
   FaLocationDot,
   FaMagnifyingGlass,
   FaMap,
-  FaUser,
+  FaStar,
   FaXmark,
 } from "react-icons/fa6";
 import { fetchParkingLots } from "@/api/parking-lots";
 import { createReservation } from "@/api/reservations";
-import { isAdminOrDevUser, isDevUser } from "@/lib/adminRole";
+import { isDevUser } from "@/lib/adminRole";
 import { EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
@@ -176,8 +175,6 @@ const MapComponent: FC = () => {
   const [reserveSuccess, setReserveSuccess] = useState(false);
   const [isReserving, setIsReserving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const showAdminMenu = isAdminOrDevUser();
 
   const unreadCount = notifications.filter((n) => n.unread).length;
   const selectedLot = selectedLotId ? lots.find((l) => l.id === selectedLotId) : null;
@@ -505,17 +502,15 @@ const MapComponent: FC = () => {
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {showAdminMenu && (
-            <button
-              type="button"
-              className="top-action-btn"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="メニューを開く"
-              style={{ width: "42px", height: "42px" }}
-            >
-              <FaBars />
-            </button>
-          )}
+          <button
+            type="button"
+            className="top-action-btn"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="メニューを開く"
+            style={{ width: "42px", height: "42px" }}
+          >
+            <FaBars />
+          </button>
           <div className="app-logo-small">
             <FaBicycle style={{ fontSize: "1.4rem" }} />
             <span>SmartCycle</span>
@@ -833,31 +828,27 @@ const MapComponent: FC = () => {
               <span className="btn-sub-label">を検索する</span>
             </div>
           </button>
-          {/* MYページ */}
-          <button
-            type="button"
-            className="right-panel-btn my-btn"
-            onClick={() => void navigate({ to: "/settings" })}
-          >
+          {/* お気に入り */}
+          <button type="button" className="right-panel-btn my-btn" onClick={() => {}}>
             <div className="btn-icon-box my">
-              <FaUser />
+              <FaStar />
             </div>
             <div className="btn-text-content">
-              <span className="btn-main-label">MYページ</span>
-              <span className="btn-sub-label">設定・通知</span>
+              <span className="btn-main-label">MY駐輪</span>
+              <span className="btn-sub-label">よく使う場所</span>
             </div>
           </button>
-          {/* 利用履歴 */}
+          {/* 予約 */}
           <button
             type="button"
             className="right-panel-btn history-btn"
             onClick={() => void navigate({ to: "/reservations" })}
           >
             <div className="btn-icon-box history">
-              <FaClockRotateLeft />
+              <FaCalendarCheck />
             </div>
             <div className="btn-text-content">
-              <span className="btn-main-label">利用履歴</span>
+              <span className="btn-main-label">予約</span>
               <span className="btn-sub-label">予約の確認</span>
             </div>
           </button>
