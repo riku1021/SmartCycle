@@ -1,4 +1,5 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
+import { useSearch } from "@tanstack/react-router";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchLatestGateDetection,
@@ -9,6 +10,7 @@ import {
 import Layout from "@/layouts/layout";
 
 const GateCamera: FC = () => {
+  const { parkingLotId } = useSearch({ strict: false }) as { parkingLotId?: string };
   const POLLING_INTERVAL_MS = 500;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -101,13 +103,15 @@ const GateCamera: FC = () => {
   }, []);
 
   const sendCurrentFrame = useCallback(async () => {
+    if (!parkingLotId) return;
     const frameBlob = await captureFrameBlob();
     if (!frameBlob) return;
-    await sendGateCameraFrame(frameBlob);
-  }, [captureFrameBlob]);
+    await sendGateCameraFrame(parkingLotId, frameBlob);
+  }, [captureFrameBlob, parkingLotId]);
 
   const pollLatest = useCallback(async () => {
-    const latest = await fetchLatestGateDetection();
+    if (!parkingLotId) return;
+    const latest = await fetchLatestGateDetection(parkingLotId);
 
     const video = videoRef.current;
     if (video && latest.boxes.length > 0) {
@@ -118,11 +122,11 @@ const GateCamera: FC = () => {
         if (prevCenterX !== undefined) {
           if (prevCenterX > lineX && centerX <= lineX) {
             setTripCount((c) => c + 1);
-            void sendTripEvent("in");
+            void sendTripEvent(parkingLotId, "in");
           }
           if (prevCenterX <= lineX && centerX > lineX) {
             setTripCount((c) => Math.max(0, c - 1));
-            void sendTripEvent("out");
+            void sendTripEvent(parkingLotId, "out");
           }
         }
         prevBoxCentersRef.current.set(i, centerX);
@@ -149,7 +153,7 @@ const GateCamera: FC = () => {
     }
 
     setLatestDetection(latest);
-  }, []);
+  }, [parkingLotId]);
 
   const runPollingCycle = useCallback(async () => {
     try {
@@ -265,6 +269,16 @@ const GateCamera: FC = () => {
       </svg>
     );
   };
+
+  if (!parkingLotId) {
+    return (
+      <Layout subtitle="HTTP Polling" title="ゲートカメラ">
+        <Box bg="#fef2f2" borderRadius="10px" color="#dc2626" fontSize="1rem" p={6}>
+          Map画面から対象の駐輪場を選択して起動してください。
+        </Box>
+      </Layout>
+    );
+  }
 
   return (
     <Layout subtitle="HTTP Polling" title="ゲートカメラ">

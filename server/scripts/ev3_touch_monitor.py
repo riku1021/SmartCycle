@@ -20,7 +20,7 @@ SmartCycle バックエンドの駐輪場ステータスをリアルタイム更
 
 必要に応じて環境変数で挙動を変更可能:
   EV3_MAC            EV3 の Bluetooth MAC アドレス (例: "00:16:53:82:75:10")
-  PARKING_LOT_ID     更新対象の駐輪場 ID (デフォルト: 1 = グランフロント)
+  PARKING_LOT_ID     更新対象の駐輪場 ID (デフォルト: 00000000-0000-0000-0000-000000000001 = 梅田ステーション東)
   API_BASE_URL       SmartCycle バックエンドのベース URL (デフォルト: http://localhost:8000)
   POLL_INTERVAL_SEC  タッチセンサーの監視間隔 (秒、デフォルト 0.1)
   API_TIMEOUT_SEC    API 送信のタイムアウト (秒、デフォルト 10.0)
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 EV3_MAC: str = os.environ.get("EV3_MAC", "00:16:53:82:75:10")
-PARKING_LOT_ID: int = int(os.environ.get("PARKING_LOT_ID", "1"))
+DEFAULT_PARKING_LOT_ID = "00000000-0000-0000-0000-000000000001"
 API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
 POLL_INTERVAL_SEC: float = float(os.environ.get("POLL_INTERVAL_SEC", "0.1"))
 API_TIMEOUT_SEC: float = float(os.environ.get("API_TIMEOUT_SEC", "10.0"))
@@ -63,12 +63,37 @@ def status_label_from_available(available_count: int) -> str:
     return "空きあり"
 
 
-def post_parking_status(available_count: int) -> None:
+def resolve_parking_lot_id() -> str:
+    """環境変数または API から EV3 連携対象の駐輪場 ID を解決する。"""
+    configured = os.environ.get("PARKING_LOT_ID")
+    if configured:
+        return configured
+
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/parking-lots", timeout=API_TIMEOUT_SEC)
+        response.raise_for_status()
+        lots = response.json()
+        for lot in lots:
+            if lot.get("name") == "梅田ステーション東":
+                return str(lot["id"])
+        for lot in lots:
+            if (
+                lot.get("availability_source_type") == "touch_sensor"
+                and lot.get("total_spots") == TOTAL_SLOTS
+            ):
+                return str(lot["id"])
+    except requests.RequestException as err:
+        print(f"[WARN] 駐輪場 ID の自動解決に失敗: {err}", file=sys.stderr)
+
+    return DEFAULT_PARKING_LOT_ID
+
+
+def post_parking_status(parking_lot_id: str, available_count: int) -> None:
     """SmartCycle バックエンドへ最新の空き台数を送信する."""
     url = f"{API_BASE_URL}/api/iot/parking-status"
     payload = {
-        "parking_lot_id": PARKING_LOT_ID,
-        "available_count": available_count,
+        "parking_lot_id": parking_lot_id,
+        "available_spots": available_count,
     }
     try:
         response = requests.post(url, json=payload, timeout=API_TIMEOUT_SEC)
@@ -83,9 +108,10 @@ def count_pressed(touch_sensors: Iterable[ev3.Touch]) -> int:
 
 
 def main() -> int:
+    parking_lot_id = resolve_parking_lot_id()
     print(
         f"EV3 ({EV3_MAC}) に Bluetooth 接続します。"
-        f"対象駐輪場 ID={PARKING_LOT_ID}, バックエンド={API_BASE_URL}"
+        f"対象駐輪場 ID={parking_lot_id}, バックエンド={API_BASE_URL}"
     )
     print("Ctrl+C で終了します。")
 
@@ -103,7 +129,7 @@ def main() -> int:
                     print(
                         f"押下数 {pressed}/{TOTAL_SLOTS} -> available_count={available} ({label})"
                     )
-                    post_parking_status(available)
+                    post_parking_status(parking_lot_id, available)
                     last_count = pressed
                 time.sleep(POLL_INTERVAL_SEC)
         except KeyboardInterrupt:

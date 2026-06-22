@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/overhead-camera", tags=["overhead-camera"])
 
-_DEVICE_NAME = "開発用俯瞰カメラ-梅田東"
-
 
 class DetectionBox(BaseModel):
     x: float
@@ -94,6 +92,7 @@ async def _update_parking_status(
 @router.post("/images", response_model=OverheadImageReceiveResponse)
 async def receive_overhead_image(
     request: Request,
+    parking_lot_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> OverheadImageReceiveResponse:
     image_bytes = await request.body()
@@ -124,7 +123,11 @@ async def receive_overhead_image(
     total_spots: int | None = None
 
     try:
-        device_result = await db.execute(select(Device).where(Device.name == _DEVICE_NAME))
+        device_result = await db.execute(
+            select(Device).where(
+                Device.parking_lot_id == parking_lot_id, Device.type == "overhead_camera"
+            )
+        )
         device = device_result.scalar_one_or_none()
 
         if device is not None:
@@ -173,11 +176,16 @@ async def receive_overhead_image(
 
 @router.get("/detections/latest", response_model=LatestOverheadDetectionResponse)
 async def get_latest_overhead_detection(
+    parking_lot_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> LatestOverheadDetectionResponse:
     """俯瞰カメラの最新検出結果をDBから返す。"""
     try:
-        device_result = await db.execute(select(Device).where(Device.name == _DEVICE_NAME))
+        device_result = await db.execute(
+            select(Device).where(
+                Device.parking_lot_id == parking_lot_id, Device.type == "overhead_camera"
+            )
+        )
         device = device_result.scalar_one_or_none()
 
         if device is not None:

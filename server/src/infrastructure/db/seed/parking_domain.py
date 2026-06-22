@@ -9,6 +9,49 @@ from src.infrastructure.db.models.parking_lot import ParkingLot
 from src.infrastructure.db.models.parking_status import ParkingStatus
 from src.infrastructure.logger.logger import logger
 
+EV3_LOT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+EV3_LOT_NAME = "梅田ステーション東"
+
+
+async def _ensure_ev3_parking_lot(session: AsyncSession) -> ParkingLot:
+    """EV3 連携用駐輪場を固定 UUID で冪等に確保する。"""
+    lot = await session.get(ParkingLot, EV3_LOT_ID)
+    if lot is not None:
+        lot.name = EV3_LOT_NAME
+        lot.latitude = 34.70631
+        lot.longitude = 135.49887
+        lot.total_spots = 3
+        lot.price_per_hour = 100
+        lot.availability_source_type = "touch_sensor"
+        return lot
+
+    name_collision = await session.execute(
+        select(ParkingLot).where(ParkingLot.name == EV3_LOT_NAME)
+    )
+    existing_by_name = name_collision.scalar_one_or_none()
+    if existing_by_name is not None:
+        existing_by_name.name = f"{EV3_LOT_NAME} (legacy)"
+
+    legacy_lot = await session.execute(
+        select(ParkingLot).where(ParkingLot.name == "グランフロント")
+    )
+    legacy = legacy_lot.scalar_one_or_none()
+    if legacy is not None and legacy.id != EV3_LOT_ID:
+        legacy.name = "グランフロント (legacy)"
+
+    lot = ParkingLot(
+        id=EV3_LOT_ID,
+        name=EV3_LOT_NAME,
+        latitude=34.70631,
+        longitude=135.49887,
+        availability_source_type="touch_sensor",
+        total_spots=3,
+        price_per_hour=100,
+    )
+    session.add(lot)
+    await session.flush()
+    return lot
+
 
 async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -> None:
     """ダッシュボード検証用の駐輪場、ステータス、デバイスを冪等に投入する。"""
@@ -17,37 +60,43 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
             now = datetime.now(UTC).replace(tzinfo=None)
 
             lots_data = [
-                ("グランフロント", 34.7044, 135.4946, 3, 100, 3),
-                ("中之島ゲート", 34.7061, 135.4962, 150, 150, 2),
-                ("本町サイクルデッキ", 34.7028, 135.4950, 100, 200, 45),
+                ("グランフロント大阪 南館 駐輪場", 34.7042, 135.4946, 200, 100, 50, "touch_sensor"),
+                ("ヨドバシ梅田タワー 駐輪場", 34.7061, 135.4962, 150, 150, 30, "touch_sensor"),
+                ("大阪ステーションシティ 駐輪場", 34.7028, 135.4950, 100, 200, 20, "touch_sensor"),
+                ("梅田スカイビル 駐輪場", 34.7051, 135.4897, 80, 150, 10, "touch_sensor"),
+                ("梅田ステーション東", 34.70631, 135.49887, 3, 100, 3, "touch_sensor"),
+                ("中之島ゲート", 34.69000, 135.49000, 150, 150, 2, "overhead_camera"),
+                ("本町サイクルデッキ", 34.68462, 135.50213, 100, 200, 45, "gate_camera"),
             ]
 
-            legacy_lot_result = await session.execute(
-                select(ParkingLot).where(ParkingLot.name == "梅田ステーション東")
-            )
-            legacy_lot = legacy_lot_result.scalar_one_or_none()
-            if legacy_lot is not None:
-                legacy_lot.name = "グランフロント"
-                legacy_lot.latitude = 34.7044
-                legacy_lot.longitude = 135.4946
-                legacy_lot.total_spots = 3
+            ev3_lot = await _ensure_ev3_parking_lot(session)
 
-            lots_by_name: dict[str, ParkingLot] = {}
+            lots_by_name: dict[str, ParkingLot] = {EV3_LOT_NAME: ev3_lot}
             inserted_lots = 0
             inserted_statuses = 0
             inserted_devices = 0
 
-            for name, lat, lng, spots, price, _available in lots_data:
+            for name, lat, lng, spots, price, _available, source_type in lots_data:
                 existing_lot = await session.execute(
                     select(ParkingLot).where(ParkingLot.name == name)
                 )
                 lot = existing_lot.scalar_one_or_none()
                 if lot is not None:
-                    if lot.total_spots != spots or lot.latitude != lat or lot.longitude != lng:
+                    if (
+                        lot.total_spots != spots
+                        or lot.latitude != lat
+                        or lot.longitude != lng
+                        or lot.availability_source_type != source_type
+                    ):
                         lot.total_spots = spots
                         lot.latitude = lat
                         lot.longitude = lng
+                        lot.availability_source_type = source_type
                     lots_by_name[name] = lot
+                    continue
+
+                if name == EV3_LOT_NAME:
+                    lots_by_name[name] = ev3_lot
                     continue
 
                 lot = ParkingLot(
@@ -55,6 +104,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                     name=name,
                     latitude=lat,
                     longitude=lng,
+                    availability_source_type=source_type,
                     total_spots=spots,
                     price_per_hour=price,
                 )
@@ -63,7 +113,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                 inserted_lots += 1
             await session.flush()
 
-            for name, _lat, _lng, _spots, _price, available in lots_data:
+            for name, _lat, _lng, _spots, _price, available, _source_type in lots_data:
                 lot = lots_by_name[name]
                 existing_status = await session.execute(
                     select(ParkingStatus).where(ParkingStatus.parking_lot_id == lot.id)
@@ -81,7 +131,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
 
             devices_data = [
                 (
-                    lots_by_name["グランフロント"].id,
+                    lots_by_name["梅田ステーション東"].id,
                     "camera",
                     "カメラ1",
                     now - timedelta(minutes=5),
