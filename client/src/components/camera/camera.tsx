@@ -1,6 +1,11 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
-import { fetchLatestDetection, type LatestDetectionResponse, sendCameraFrame, sendTripEvent } from "@/api/camera";
+import {
+  fetchLatestDetection,
+  type LatestDetectionResponse,
+  sendCameraFrame,
+  sendTripEvent,
+} from "@/api/camera";
 import Layout from "@/layouts/layout";
 
 const CameraComponent: FC = () => {
@@ -11,7 +16,7 @@ const CameraComponent: FC = () => {
   const pollingIntervalRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const prevBoxCentersRef = useRef<Map<number, number>>(new Map());
-  const resetTimerRef = useRef<number | null>(null);  // ← 追加
+  const resetTimerRef = useRef<number | null>(null); // ← 追加
   const [isStreaming, setIsStreaming] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [cameraError, setCameraError] = useState<string>("");
@@ -76,7 +81,9 @@ const CameraComponent: FC = () => {
 
   useEffect(() => {
     void startCamera();
-    return () => { stopCamera(); };
+    return () => {
+      stopCamera();
+    };
   }, [startCamera, stopCamera]);
 
   const captureFrameBlob = useCallback(async (): Promise<Blob | null> => {
@@ -146,7 +153,7 @@ const CameraComponent: FC = () => {
     }
 
     setLatestDetection(latest);
-  }, [sendTripEvent]);
+  }, []);
 
   const runPollingCycle = useCallback(async () => {
     try {
@@ -160,14 +167,19 @@ const CameraComponent: FC = () => {
   }, [pollLatest, sendCurrentFrame, stopPolling]);
 
   useEffect(() => {
-    if (!isStreaming) { stopPolling(); return; }
+    if (!isStreaming) {
+      stopPolling();
+      return;
+    }
     if (pollingIntervalRef.current !== null) return;
     setIsPolling(true);
     void runPollingCycle();
     pollingIntervalRef.current = window.setInterval(() => {
       void runPollingCycle();
     }, POLLING_INTERVAL_MS);
-    return () => { stopPolling(); };
+    return () => {
+      stopPolling();
+    };
   }, [isStreaming, runPollingCycle, stopPolling]);
 
   const renderBoxes = () => {
@@ -183,6 +195,8 @@ const CameraComponent: FC = () => {
 
     return (
       <svg
+        role="img"
+        aria-label="Detection Boxes"
         style={{
           position: "absolute",
           top: 0,
@@ -231,35 +245,43 @@ const CameraComponent: FC = () => {
     );
   };
 
-const renderTripwire = () => {
-  if (!isStreaming) return null;
-  return (
-    <svg
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        pointerEvents: "none",
-      }}
-    >
-      <line
-        x1="50%"
-        y1="0"
-        x2="50%"
-        y2="100%"
-        stroke="#ef4444"
-        strokeWidth={2}
-        strokeDasharray="8,4"
-      />
-    </svg>
-  );
-};
+  const renderTripwire = () => {
+    if (!isStreaming) return null;
+    return (
+      <svg
+        role="img"
+        aria-label="Tripwire"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+        }}
+      >
+        <line
+          x1="50%"
+          y1="0"
+          x2="50%"
+          y2="100%"
+          stroke="#ef4444"
+          strokeWidth={2}
+          strokeDasharray="8,4"
+        />
+      </svg>
+    );
+  };
 
   return (
     <Layout subtitle="HTTP Polling" title="カメラ画像">
-      <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="16px" p={6}>
+      <Box
+        bg="var(--surface)"
+        border="1px solid"
+        borderColor="var(--border)"
+        borderRadius="16px"
+        p={6}
+      >
         <Box position="relative" mx="auto" maxW="805px" ref={containerRef}>
           <chakra.video
             aspectRatio={videoAspectRatio}
@@ -279,9 +301,9 @@ const renderTripwire = () => {
 
         <Flex
           alignItems="center"
-          bg="#f8fafc"
+          bg="var(--bg)"
           border="1px solid"
-          borderColor="#e2e8f0"
+          borderColor="var(--border)"
           borderRadius="12px"
           gap={2}
           mt={4}

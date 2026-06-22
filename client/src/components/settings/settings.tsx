@@ -26,7 +26,7 @@ const SettingsComponent: FC = () => {
   const [displayName, setDisplayName] = useState(
     () => localStorage.getItem(DISPLAY_NAME_KEY) ?? "ユーザー"
   );
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem(DARK_KEY) === "true");
+  const [darkMode, setDarkMode] = useState(() => sessionStorage.getItem(DARK_KEY) === "true");
   const [notifications, setNotifications] = useState(
     () => localStorage.getItem(NOTIF_KEY) !== "false"
   );
@@ -39,7 +39,7 @@ const SettingsComponent: FC = () => {
     } else {
       document.body.classList.remove("dark-theme");
     }
-    localStorage.setItem(DARK_KEY, String(darkMode));
+    sessionStorage.setItem(DARK_KEY, String(darkMode));
   }, [darkMode]);
 
   // 初期ロード時にサーバーからユーザー情報を取得
@@ -82,6 +82,7 @@ const SettingsComponent: FC = () => {
   const handleReset = () => {
     if (!window.confirm("すべての設定をリセットしますか？ログアウトされます。")) return;
     localStorage.clear();
+    sessionStorage.removeItem(DARK_KEY);
     document.body.classList.remove("dark-theme");
     void navigate({ to: "/login" });
   };

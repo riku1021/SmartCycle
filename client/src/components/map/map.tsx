@@ -886,7 +886,7 @@ const MapComponent: FC = () => {
             <FaCircleCheck /> 予約完了済み
           </div>
         )}
-        <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "12px" }}>
+        <div style={{ fontSize: "0.85rem", color: "var(--text2)", marginBottom: "12px" }}>
           {mapMessage}
         </div>
         <div

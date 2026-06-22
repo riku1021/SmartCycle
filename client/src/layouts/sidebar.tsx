@@ -10,9 +10,9 @@ const Sidebar: FC<SidebarProps> = ({ isActivePath }) => {
   return (
     <Box
       as="aside"
-      bg="white"
+      bg="var(--surface)"
       borderRight="1px solid"
-      borderColor="#e2e8f0"
+      borderColor="var(--border)"
       display={{ base: "none", md: "flex" }}
       flexDirection="column"
       w="280px"
@@ -20,8 +20,8 @@ const Sidebar: FC<SidebarProps> = ({ isActivePath }) => {
       <Box
         alignItems="center"
         borderBottom="1px solid"
-        borderColor="#e2e8f0"
-        color="#4f46e5"
+        borderColor="var(--border)"
+        color="#4F46E5"
         display="flex"
         gap={3}
         px={4}
