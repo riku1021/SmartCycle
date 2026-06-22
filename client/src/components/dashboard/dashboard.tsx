@@ -37,7 +37,7 @@ const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number 
               y1={y}
               x2={leftPad + totalWidth}
               y2={y}
-              stroke="#e2e8f0"
+              stroke="var(--border-color)"
               strokeWidth={1}
             />
             <text x={leftPad - 8} y={y + 4} textAnchor="end" fontSize={11} fill="#94a3b8">
@@ -70,7 +70,7 @@ const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number 
               y={labelY}
               textAnchor="end"
               fontSize={10}
-              fill="#64748b"
+              fill="var(--text-secondary)"
               transform={`rotate(-40, ${labelX}, ${labelY})`}
             >
               {d.short_name}
@@ -106,7 +106,7 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
           cy={cy}
           r={(outerR + innerR) / 2}
           fill="none"
-          stroke="#e2e8f0"
+          stroke="var(--border-color)"
           strokeWidth={outerR - innerR}
         />
       </svg>
@@ -310,7 +310,9 @@ const DashboardComponent: FC = () => {
                           backgroundColor: item.color,
                         }}
                       />
-                      <span style={{ fontSize: "0.9rem", color: "#64748b" }}>{item.name}</span>
+                      <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>
+                        {item.name}
+                      </span>
                     </div>
                   ))}
                 </div>

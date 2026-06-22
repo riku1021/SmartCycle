@@ -9,6 +9,17 @@ import { createQueryClient } from "@/queries/queryClient";
 import { routeTree } from "@/routeTree.gen";
 import theme from "@/theme";
 
+// 起動時にセッション内のダークモード設定を body に反映
+const DARK_KEY = "smartcycle_darkmode";
+if (typeof window !== "undefined") {
+  const isDark = sessionStorage.getItem(DARK_KEY) === "true";
+  if (isDark) {
+    document.body.classList.add("dark-theme");
+  } else {
+    document.body.classList.remove("dark-theme");
+  }
+}
+
 const router = createRouter<typeof routeTree>({ routeTree });
 const queryClient = createQueryClient();
 

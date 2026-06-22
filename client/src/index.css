@@ -12,6 +12,7 @@
   --red: #ef4444;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-bg: rgba(255, 255, 255, 0.96);
 }
 * {
   box-sizing: border-box;
@@ -1579,6 +1580,29 @@ html {
   --text: #f1f5f9;
   --text2: #94a3b8;
   --border: #334155;
+  --primary-color: #818cf8;
+  --bg-color: #0f172a;
+  --panel-bg: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+  --nav-bg: rgba(30, 41, 59, 0.96);
+}
+.dark-theme .btn-main-label {
+  color: var(--text);
+}
+.dark-theme .btn-sub-label {
+  color: var(--text2);
+}
+.dark-theme .mini-item-name {
+  color: var(--text);
+}
+.dark-theme .auth-tabs {
+  background: var(--bg);
+}
+.dark-theme .auth-tab.active {
+  background: var(--surface);
+  color: var(--primary);
 }
 .dark-theme .auth-top-bar,
 .dark-theme .app-top-bar {
@@ -1610,6 +1634,9 @@ html {
 }
 .dark-theme .notif-badge {
   border-color: var(--surface);
+}
+.dark-theme .back-btn {
+  color: #0f172a;
 }
 
 /* Mini Spinner */

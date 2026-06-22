@@ -78,7 +78,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
               isActivePath("/dashboard") &&
               (window.location.search === "" || window.location.search.includes("tab=dashboard"))
                 ? "#ffffff"
-                : "#64748b"
+                : "var(--text2)"
             }
             display="flex"
             fontWeight={600}
@@ -106,7 +106,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
             bg={isActivePath("/users") ? "#4f46e5" : "transparent"}
             borderRadius="12px"
             boxShadow={isActivePath("/users") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-            color={isActivePath("/users") ? "#ffffff" : "#64748b"}
+            color={isActivePath("/users") ? "#ffffff" : "var(--text2)"}
             display="flex"
             fontWeight={600}
             gap={2.5}
@@ -127,7 +127,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
             bg={isActivePath("/map") ? "#4f46e5" : "transparent"}
             borderRadius="12px"
             boxShadow={isActivePath("/map") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-            color={isActivePath("/map") ? "#ffffff" : "#64748b"}
+            color={isActivePath("/map") ? "#ffffff" : "var(--text2)"}
             display="flex"
             fontWeight={600}
             gap={2.5}
@@ -148,7 +148,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
             bg={isActivePath("/lots") ? "#4f46e5" : "transparent"}
             borderRadius="12px"
             boxShadow={isActivePath("/lots") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-            color={isActivePath("/lots") ? "#ffffff" : "#64748b"}
+            color={isActivePath("/lots") ? "#ffffff" : "var(--text2)"}
             display="flex"
             fontWeight={600}
             gap={2.5}
@@ -171,7 +171,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
             boxShadow={
               isActivePath("/reservations") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
             }
-            color={isActivePath("/reservations") ? "#ffffff" : "#64748b"}
+            color={isActivePath("/reservations") ? "#ffffff" : "var(--text2)"}
             display="flex"
             fontWeight={600}
             gap={2.5}
@@ -194,7 +194,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
             boxShadow={
               isActivePath("/gate-camera") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
             }
-            color={isActivePath("/gate-camera") ? "#ffffff" : "#64748b"}
+            color={isActivePath("/gate-camera") ? "#ffffff" : "var(--text2)"}
             display="flex"
             fontWeight={600}
             gap={2.5}
@@ -237,7 +237,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
           bg={isActivePath("/settings") ? "#4f46e5" : "transparent"}
           borderRadius="12px"
           boxShadow={isActivePath("/settings") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"}
-          color={isActivePath("/settings") ? "#ffffff" : "#64748b"}
+          color={isActivePath("/settings") ? "#ffffff" : "var(--text2)"}
           display="flex"
           fontWeight={600}
           gap={2.5}
@@ -254,11 +254,11 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
       </Box>
       <Box mt="auto" p={3} pb={5}>
         <Button
-          _hover={{ bg: "#f1f5f9", color: "#4f46e5" }}
+          _hover={{ bg: "var(--bg)", color: "var(--primary)" }}
           alignItems="center"
           bg="transparent"
           borderRadius="12px"
-          color="#64748b"
+          color="var(--text2)"
           display="flex"
           gap={2.5}
           justifyContent="flex-start"

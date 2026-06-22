@@ -125,11 +125,18 @@ const LotsComponent: FC = () => {
 
   return (
     <Layout title="駐輪場一覧" subtitle="条件でフィルタしながら駐輪場を探せます">
-      <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" mb={4} p={6}>
+      <Box
+        bg="var(--surface)"
+        border="1px solid"
+        borderColor="var(--border)"
+        borderRadius="2xl"
+        mb={4}
+        p={6}
+      >
         <Heading fontSize="1.05rem" mb={3}>
           LEGO Mindstorms EV3 連携状況
         </Heading>
-        <Text color="#64748b" fontSize="0.9rem" mb={3}>
+        <Text color="var(--text2)" fontSize="0.9rem" mb={3}>
           EV3 のポート 1 / 2 / 3 のタッチセンサー押下個数が、
           「梅田ステーション東」の空き状況にリアルタイム反映されます。
         </Text>
@@ -144,7 +151,7 @@ const LotsComponent: FC = () => {
             {ev3Status ? "EV3 モニタ受信中" : "EV3 モニタ未受信"}
           </Badge>
           {ev3Status ? (
-            <Text color="#64748b" fontSize="0.85rem">
+            <Text color="var(--text2)" fontSize="0.85rem">
               押下数: <b>{pressedCount}</b> / {EV3_TOTAL_SLOTS} / 空き:{" "}
               <b>{ev3Status.available_spots}</b> / 更新: {ev3Status.updated_at}
             </Text>
@@ -163,7 +170,14 @@ const LotsComponent: FC = () => {
         ) : null}
       </Box>
 
-      <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" mb={4} p={6}>
+      <Box
+        bg="var(--surface)"
+        border="1px solid"
+        borderColor="var(--border)"
+        borderRadius="2xl"
+        mb={4}
+        p={6}
+      >
         <HStack gap={2.5} mb={4}>
           <Button bg="#4f46e5" borderRadius="full" color="white" type="button">
             すべて
@@ -179,7 +193,13 @@ const LotsComponent: FC = () => {
           {lots.map((lot) => {
             const palette = statusColor(lot.status);
             return (
-              <Box border="1px solid" borderColor="#e2e8f0" borderRadius="lg" key={lot.id} p={3.5}>
+              <Box
+                border="1px solid"
+                borderColor="var(--border)"
+                borderRadius="lg"
+                key={lot.id}
+                p={3.5}
+              >
                 <HStack justify="space-between">
                   <Heading as="h3" fontSize="md">
                     {lot.name}
@@ -194,7 +214,7 @@ const LotsComponent: FC = () => {
                   <Badge bg={palette.bg} color={palette.color} px={2.5} py={1}>
                     {lot.status}
                   </Badge>
-                  <Text color="#64748b">{lot.walk}</Text>
+                  <Text color="var(--text2)">{lot.walk}</Text>
                 </HStack>
               </Box>
             );
