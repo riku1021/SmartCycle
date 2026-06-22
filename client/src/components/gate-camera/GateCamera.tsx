@@ -1,14 +1,16 @@
 import { Badge, Box, Button, chakra, Flex } from "@chakra-ui/react";
+import { useSearch } from "@tanstack/react-router";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import {
-  fetchLatestDetection,
+  fetchLatestGateDetection,
   type LatestDetectionResponse,
-  sendCameraFrame,
+  sendGateCameraFrame,
   sendTripEvent,
-} from "@/api/camera";
+} from "@/api/gateCamera";
 import Layout from "@/layouts/layout";
 
-const CameraComponent: FC = () => {
+const GateCamera: FC = () => {
+  const { parkingLotId } = useSearch({ strict: false }) as { parkingLotId?: string };
   const POLLING_INTERVAL_MS = 500;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -16,7 +18,7 @@ const CameraComponent: FC = () => {
   const pollingIntervalRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const prevBoxCentersRef = useRef<Map<number, number>>(new Map());
-  const resetTimerRef = useRef<number | null>(null); // ← 追加
+  const resetTimerRef = useRef<number | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [cameraError, setCameraError] = useState<string>("");
@@ -101,15 +103,16 @@ const CameraComponent: FC = () => {
   }, []);
 
   const sendCurrentFrame = useCallback(async () => {
+    if (!parkingLotId) return;
     const frameBlob = await captureFrameBlob();
     if (!frameBlob) return;
-    await sendCameraFrame(frameBlob);
-  }, [captureFrameBlob]);
+    await sendGateCameraFrame(parkingLotId, frameBlob);
+  }, [captureFrameBlob, parkingLotId]);
 
   const pollLatest = useCallback(async () => {
-    const latest = await fetchLatestDetection();
+    if (!parkingLotId) return;
+    const latest = await fetchLatestGateDetection(parkingLotId);
 
-    // トリップワイヤー判定（画像座標の中央 = videoWidth / 2）
     const video = videoRef.current;
     if (video && latest.boxes.length > 0) {
       const lineX = video.videoWidth / 2;
@@ -117,15 +120,13 @@ const CameraComponent: FC = () => {
         const centerX = box.x + box.width / 2;
         const prevCenterX = prevBoxCentersRef.current.get(i);
         if (prevCenterX !== undefined) {
-          // 映像はscaleX(-1)で反転しているので左右が逆
-          // 画面上で左→右 = 画像座標で右→左
           if (prevCenterX > lineX && centerX <= lineX) {
             setTripCount((c) => c + 1);
-            void sendTripEvent("in");
+            void sendTripEvent(parkingLotId, "in");
           }
           if (prevCenterX <= lineX && centerX > lineX) {
             setTripCount((c) => Math.max(0, c - 1));
-            void sendTripEvent("out");
+            void sendTripEvent(parkingLotId, "out");
           }
         }
         prevBoxCentersRef.current.set(i, centerX);
@@ -137,7 +138,6 @@ const CameraComponent: FC = () => {
       }
     }
 
-    // 検出がなくなったら1秒後にキャッシュをリセット
     if (latest.boxes.length === 0) {
       if (resetTimerRef.current === null) {
         resetTimerRef.current = window.setTimeout(() => {
@@ -153,7 +153,7 @@ const CameraComponent: FC = () => {
     }
 
     setLatestDetection(latest);
-  }, []);
+  }, [parkingLotId]);
 
   const runPollingCycle = useCallback(async () => {
     try {
@@ -195,8 +195,7 @@ const CameraComponent: FC = () => {
 
     return (
       <svg
-        role="img"
-        aria-label="Detection Boxes"
+        aria-hidden="true"
         style={{
           position: "absolute",
           top: 0,
@@ -208,7 +207,6 @@ const CameraComponent: FC = () => {
         }}
         viewBox={`0 0 ${containerWidth} ${containerHeight}`}
       >
-        {/* トリップワイヤー */}
         <line
           x1={lineX}
           y1={0}
@@ -249,8 +247,7 @@ const CameraComponent: FC = () => {
     if (!isStreaming) return null;
     return (
       <svg
-        role="img"
-        aria-label="Tripwire"
+        aria-hidden="true"
         style={{
           position: "absolute",
           top: 0,
@@ -272,9 +269,26 @@ const CameraComponent: FC = () => {
       </svg>
     );
   };
+  if (!parkingLotId) {
+    return (
+      <Layout subtitle="HTTP Polling" title="ゲートカメラ">
+        <Box
+          bg="var(--surface)"
+          border="1px solid"
+          borderColor="var(--border)"
+          borderRadius="10px"
+          color="#dc2626"
+          fontSize="1rem"
+          p={6}
+        >
+          Map画面から対象の駐輪場を選択して起動してください。
+        </Box>
+      </Layout>
+    );
+  }
 
   return (
-    <Layout subtitle="HTTP Polling" title="カメラ画像">
+    <Layout subtitle="HTTP Polling" title="ゲートカメラ">
       <Box
         bg="var(--surface)"
         border="1px solid"
@@ -353,4 +367,4 @@ const CameraComponent: FC = () => {
   );
 };
 
-export default CameraComponent;
+export default GateCamera;

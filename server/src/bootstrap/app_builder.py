@@ -11,7 +11,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from src.infrastructure.config.settings import load_settings
-from src.infrastructure.db.seed import seed_dev_users, seed_parking_domain, seed_reservations, seed_camera
+from src.infrastructure.db.seed import (
+    seed_camera,
+    seed_dev_users,
+    seed_parking_domain,
+    seed_reservations,
+)
 from src.infrastructure.db.session import close_db, get_session_maker, init_db
 from src.infrastructure.http import setup_exception_handlers
 from src.infrastructure.logger.logger import logger

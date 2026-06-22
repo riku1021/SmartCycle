@@ -20,47 +20,82 @@ async def seed_camera(session_maker: async_sessionmaker[AsyncSession]) -> None:
             select(ParkingLot).where(ParkingLot.name == "梅田ステーション東")
         )
         parking_lot = result.scalar_one_or_none()
+
+        # 中之島ゲートの parking_lot_id を取得
+        nakanoshima_result = await session.execute(
+            select(ParkingLot).where(ParkingLot.name == "中之島ゲート")
+        )
+        nakanoshima_lot = nakanoshima_result.scalar_one_or_none()
         if parking_lot is None:
             parking_lot = ParkingLot(
                 id=uuid.uuid7(),
                 name="梅田ステーション東",
                 latitude=34.7024,
                 longitude=135.4959,
+                availability_source_type="touch_sensor",
                 total_spots=20,
                 price_per_hour=100,
             )
             session.add(parking_lot)
             await session.flush()
 
-        # devices の重複チェック
-        device_result = await session.execute(
-            select(Device).where(Device.name == "開発用カメラ-梅田東")
+        # タッチセンサーデバイス (EV3)
+        touch_device_result = await session.execute(
+            select(Device).where(Device.name == "EV3タッチセンサー-梅田東")
         )
-        existing_device = device_result.scalar_one_or_none()
-        if existing_device is not None:
-            device = existing_device
-        else:
-            device = Device(
+        if touch_device_result.scalar_one_or_none() is None:
+            touch_device = Device(
                 id=uuid.uuid7(),
                 parking_lot_id=parking_lot.id,
-                type="camera",
-                name="開発用カメラ-梅田東",
+                type="touch_sensor",
+                name="EV3タッチセンサー-梅田東",
             )
-            session.add(device)
+            session.add(touch_device)
             await session.flush()
 
-        # camera_detections の重複チェック
-        detection_result = await session.execute(
-            select(CameraDetection).where(
-                CameraDetection.device_id == device.id
+        # ゲートカメラデバイス
+        gate_device_result = await session.execute(
+            select(Device).where(Device.name == "開発用カメラ-梅田東")
+        )
+        existing_gate_device = gate_device_result.scalar_one_or_none()
+        if existing_gate_device is not None:
+            gate_device = existing_gate_device
+        else:
+            gate_device = Device(
+                id=uuid.uuid7(),
+                parking_lot_id=parking_lot.id,
+                type="gate_camera",
+                name="開発用カメラ-梅田東",
             )
+            session.add(gate_device)
+            await session.flush()
+
+        # 俯瞰カメラデバイス
+        if nakanoshima_lot is not None:
+            overhead_device_result = await session.execute(
+                select(Device).where(Device.name == "開発用俯瞰カメラ-中之島")
+            )
+            existing_overhead_device = overhead_device_result.scalar_one_or_none()
+            if existing_overhead_device is None:
+                overhead_device = Device(
+                    id=uuid.uuid7(),
+                    parking_lot_id=nakanoshima_lot.id,
+                    type="overhead_camera",
+                    name="開発用俯瞰カメラ-中之島",
+                )
+                session.add(overhead_device)
+                await session.flush()
+
+        # camera_detections の重複チェック（ゲートカメラ）
+        detection_result = await session.execute(
+            select(CameraDetection).where(CameraDetection.device_id == gate_device.id).limit(1)
         )
         existing_detection = detection_result.scalar_one_or_none()
         if existing_detection is None:
             detection = CameraDetection(
                 id=uuid.uuid7(),
                 parking_lot_id=parking_lot.id,
-                device_id=device.id,
+                device_id=gate_device.id,
                 detected_count=2,
                 detection_data={
                     "boxes": [

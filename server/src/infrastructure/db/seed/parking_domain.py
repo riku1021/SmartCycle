@@ -17,16 +17,20 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
             now = datetime.now(UTC).replace(tzinfo=None)
 
             lots_data = [
-                ("梅田ステーション東", 34.7042, 135.4946, 200, 100, 180),
-                ("中之島ゲート", 34.7061, 135.4962, 150, 150, 2),
-                ("本町サイクルデッキ", 34.7028, 135.4950, 100, 200, 45),
+                ("グランフロント大阪 南館 駐輪場", 34.7042, 135.4946, 200, 100, 50, "touch_sensor"),
+                ("ヨドバシ梅田タワー 駐輪場", 34.7061, 135.4962, 150, 150, 30, "touch_sensor"),
+                ("大阪ステーションシティ 駐輪場", 34.7028, 135.4950, 100, 200, 20, "touch_sensor"),
+                ("梅田スカイビル 駐輪場", 34.7051, 135.4897, 80, 150, 10, "touch_sensor"),
+                ("梅田ステーション東", 34.70631, 135.49887, 200, 100, 20, "touch_sensor"),
+                ("中之島ゲート", 34.69000, 135.49000, 150, 150, 2, "touch_sensor"),
+                ("本町サイクルデッキ", 34.68462, 135.50213, 100, 200, 45, "touch_sensor"),
             ]
             lots_by_name: dict[str, ParkingLot] = {}
             inserted_lots = 0
             inserted_statuses = 0
             inserted_devices = 0
 
-            for name, lat, lng, spots, price, _available in lots_data:
+            for name, lat, lng, spots, price, _available, source_type in lots_data:
                 existing_lot = await session.execute(
                     select(ParkingLot).where(ParkingLot.name == name)
                 )
@@ -35,11 +39,16 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                     lots_by_name[name] = lot
                     continue
 
+                lot_id = uuid.uuid4()
+                if name == "梅田ステーション東":
+                    lot_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
                 lot = ParkingLot(
-                    id=uuid.uuid4(),
+                    id=lot_id,
                     name=name,
                     latitude=lat,
                     longitude=lng,
+                    availability_source_type=source_type,
                     total_spots=spots,
                     price_per_hour=price,
                 )
@@ -48,7 +57,7 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                 inserted_lots += 1
             await session.flush()
 
-            for name, _lat, _lng, _spots, _price, available in lots_data:
+            for name, _lat, _lng, _spots, _price, available, _source_type in lots_data:
                 lot = lots_by_name[name]
                 existing_status = await session.execute(
                     select(ParkingStatus).where(ParkingStatus.parking_lot_id == lot.id)
