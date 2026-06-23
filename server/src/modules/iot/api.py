@@ -94,7 +94,7 @@ async def upsert_parking_status(
     history = ParkingStatusHistory(
         parking_lot_id=body.parking_lot_id,
         available_spots=body.available_spots,
-        timestamp=datetime.now(UTC).replace(tzinfo=None),
+        recorded_at=datetime.now(UTC).replace(tzinfo=None),
     )
     session.add(history)
 
