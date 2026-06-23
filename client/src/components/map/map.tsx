@@ -176,6 +176,20 @@ const MapComponent: FC = () => {
   const [isReserving, setIsReserving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const [favoriteLotIds, setFavoriteLotIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem("my-lots");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showFavorites, setShowFavorites] = useState(false);
+
+  const toggleFavorite = useCallback((id: string) => {
+    setFavoriteLotIds((prev) => {
+      const newFavs = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      localStorage.setItem("my-lots", JSON.stringify(newFavs));
+      return newFavs;
+    });
+  }, []);
+
   const unreadCount = notifications.filter((n) => n.unread).length;
   const selectedLot = selectedLotId ? lots.find((l) => l.id === selectedLotId) : null;
 
@@ -536,6 +550,7 @@ const MapComponent: FC = () => {
             onClick={() => {
               setShowNotif(!showNotif);
               setShowSearch(false);
+              setShowFavorites(false);
             }}
           >
             <FaBell />
@@ -758,6 +773,71 @@ const MapComponent: FC = () => {
         </div>
       )}
 
+      {/* ===== MY駐輪場パネル ===== */}
+      {showFavorites && (
+        <div className="destination-search-panel">
+          <div className="dest-panel-header">
+            <button type="button" className="back-btn" onClick={() => setShowFavorites(false)}>
+              <FaChevronLeft />
+            </button>
+            <div style={{ flex: 1, fontWeight: 700, color: "var(--text)", paddingLeft: "8px" }}>
+              MY駐輪場
+            </div>
+          </div>
+          <div className="dest-results">
+            {lots
+              .filter((l) => favoriteLotIds.includes(l.id))
+              .map((lot) => {
+                const sc = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
+                const sl = sc === "full" ? "満車" : sc === "few" ? "残りわずか" : "空きあり";
+                return (
+                  <button
+                    type="button"
+                    key={lot.id}
+                    className="search-result-item"
+                    style={{
+                      width: "100%",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      padding: 0,
+                    }}
+                    onClick={() => {
+                      setSelectedLotId(lot.id);
+                      setPanelOpen(true);
+                      setShowFavorites(false);
+                      mapRef.current?.panTo([lot.latitude, lot.longitude]);
+                    }}
+                  >
+                    <div className="result-main">
+                      <div className="result-info">
+                        <div className="result-name">{lot.name}</div>
+                        <div className="result-meta">
+                          <span>
+                            空き {lot.available_spots}/{lot.total_spots}台
+                          </span>
+                          <span>¥{lot.price_per_hour}/時間</span>
+                        </div>
+                      </div>
+                      <span className={`result-status ${sc}`}>{sl}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            {favoriteLotIds.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--text2)" }}>
+                MY駐輪場に登録されている駐輪場はありません。
+                <br />
+                <br />
+                詳細パネルの <FaStar style={{ display: "inline-block", color: "#cbd5e1" }} />{" "}
+                アイコンから登録できます。
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ===== ボトムパネル（ログイン後） ===== */}
       <div
         className={`bottom-panel logged-panel ${panelOpen ? "collapsed" : ""}`}
@@ -783,6 +863,7 @@ const MapComponent: FC = () => {
           <div className="nearby-mini-list" id="nearby-mini-list">
             {lots.map((lot) => {
               const sClass = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
+              const isFavorite = favoriteLotIds.includes(lot.id);
               return (
                 <button
                   type="button"
@@ -801,7 +882,20 @@ const MapComponent: FC = () => {
                     mapRef.current?.panTo([lot.latitude, lot.longitude]);
                   }}
                 >
-                  <span className="mini-item-name">{lot.name}</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    {isFavorite && <FaStar style={{ color: "#f59e0b", flexShrink: 0 }} />}
+                    <span className="mini-item-name" style={{ flex: 1 }}>
+                      {lot.name}
+                    </span>
+                  </div>
                   <span className={`badge ${sClass}`}>{lot.available_spots}台</span>
                 </button>
               );
@@ -818,6 +912,7 @@ const MapComponent: FC = () => {
               setShowSearch(true);
               setPanelOpen(false);
               setShowNotif(false);
+              setShowFavorites(false);
             }}
           >
             <div className="btn-icon-box dest">
@@ -829,7 +924,16 @@ const MapComponent: FC = () => {
             </div>
           </button>
           {/* お気に入り */}
-          <button type="button" className="right-panel-btn my-btn" onClick={() => {}}>
+          <button
+            type="button"
+            className="right-panel-btn my-btn"
+            onClick={() => {
+              setShowFavorites(true);
+              setPanelOpen(false);
+              setShowSearch(false);
+              setShowNotif(false);
+            }}
+          >
             <div className="btn-icon-box my">
               <FaStar />
             </div>
@@ -861,11 +965,31 @@ const MapComponent: FC = () => {
         <button type="button" className="panel-close-btn" onClick={handleClosePanel}>
           <FaXmark />
         </button>
-        <div className="panel-header">
-          <h2 id="lot-title">{selectedLot?.name ?? "駐輪場名"}</h2>
-          <span id="lot-status-badge" className={`badge ${statusClass}`}>
-            {statusLabel}
-          </span>
+        <div
+          className="panel-header"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
+        >
+          <div>
+            <h2 id="lot-title">{selectedLot?.name ?? "駐輪場名"}</h2>
+            <span id="lot-status-badge" className={`badge ${statusClass}`}>
+              {statusLabel}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => selectedLot && toggleFavorite(selectedLot.id)}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "1.5rem",
+              color: selectedLot && favoriteLotIds.includes(selectedLot.id) ? "#f59e0b" : "#cbd5e1",
+              cursor: "pointer",
+              padding: "4px",
+            }}
+            title="MY駐輪場に登録/解除"
+          >
+            <FaStar />
+          </button>
         </div>
         <div className="panel-body">
           <div className="stat-row">
