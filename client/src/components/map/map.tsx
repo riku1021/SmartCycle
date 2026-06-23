@@ -857,56 +857,13 @@ const MapComponent: FC = () => {
           }}
         />
         <div className="bottom-left-panel">
-          {favoriteLotIds.length > 0 && (
-            <>
-              <div className="bottom-panel-label" style={{ color: "#059669" }}>
-                <FaStar style={{ display: "inline-block" }} /> MY駐輪場
-              </div>
-              <div
-                className="nearby-mini-list"
-                style={{ flex: "0 0 auto", maxHeight: "45%", marginBottom: "8px" }}
-              >
-                {lots
-                  .filter((l) => favoriteLotIds.includes(l.id))
-                  .map((lot) => {
-                    const sClass = getStatusClass(
-                      lot.available_spots,
-                      lot.total_spots,
-                      lot.isEv3Linked
-                    );
-                    return (
-                      <button
-                        type="button"
-                        key={`fav-${lot.id}`}
-                        className="mini-item"
-                        style={{
-                          width: "100%",
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onClick={() => {
-                          setSelectedLotId(lot.id);
-                          setPanelOpen(true);
-                          mapRef.current?.panTo([lot.latitude, lot.longitude]);
-                        }}
-                      >
-                        <span className="mini-item-name">{lot.name}</span>
-                        <span className={`badge ${sClass}`}>{lot.available_spots}台</span>
-                      </button>
-                    );
-                  })}
-              </div>
-            </>
-          )}
-
           <div className="bottom-panel-label">
             <FaLocationDot style={{ display: "inline-block" }} /> 周辺の駐輪場
           </div>
           <div className="nearby-mini-list" id="nearby-mini-list">
             {lots.map((lot) => {
               const sClass = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
+              const isFavorite = favoriteLotIds.includes(lot.id);
               return (
                 <button
                   type="button"
@@ -925,7 +882,20 @@ const MapComponent: FC = () => {
                     mapRef.current?.panTo([lot.latitude, lot.longitude]);
                   }}
                 >
-                  <span className="mini-item-name">{lot.name}</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    {isFavorite && <FaStar style={{ color: "#f59e0b", flexShrink: 0 }} />}
+                    <span className="mini-item-name" style={{ flex: 1 }}>
+                      {lot.name}
+                    </span>
+                  </div>
                   <span className={`badge ${sClass}`}>{lot.available_spots}台</span>
                 </button>
               );
