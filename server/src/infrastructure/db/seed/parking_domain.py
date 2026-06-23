@@ -42,6 +42,8 @@ async def seed_parking_domain(session_maker: async_sessionmaker[AsyncSession]) -
                 lot_id = uuid.uuid4()
                 if name == "梅田ステーション東":
                     lot_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+                elif name == "ヨドバシ梅田タワー 駐輪場":
+                    lot_id = uuid.UUID("00000000-0000-0000-0000-000000000002")
 
                 lot = ParkingLot(
                     id=lot_id,
