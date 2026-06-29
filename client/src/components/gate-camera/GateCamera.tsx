@@ -269,11 +269,18 @@ const GateCamera: FC = () => {
       </svg>
     );
   };
-
   if (!parkingLotId) {
     return (
       <Layout subtitle="HTTP Polling" title="ゲートカメラ">
-        <Box bg="#fef2f2" borderRadius="10px" color="#dc2626" fontSize="1rem" p={6}>
+        <Box
+          bg="var(--surface)"
+          border="1px solid"
+          borderColor="var(--border)"
+          borderRadius="10px"
+          color="#dc2626"
+          fontSize="1rem"
+          p={6}
+        >
           Map画面から対象の駐輪場を選択して起動してください。
         </Box>
       </Layout>
@@ -282,7 +289,13 @@ const GateCamera: FC = () => {
 
   return (
     <Layout subtitle="HTTP Polling" title="ゲートカメラ">
-      <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="16px" p={6}>
+      <Box
+        bg="var(--surface)"
+        border="1px solid"
+        borderColor="var(--border)"
+        borderRadius="16px"
+        p={6}
+      >
         <Box position="relative" mx="auto" maxW="805px" ref={containerRef}>
           <chakra.video
             aspectRatio={videoAspectRatio}
@@ -302,9 +315,9 @@ const GateCamera: FC = () => {
 
         <Flex
           alignItems="center"
-          bg="#f8fafc"
+          bg="var(--bg)"
           border="1px solid"
-          borderColor="#e2e8f0"
+          borderColor="var(--border)"
           borderRadius="12px"
           gap={2}
           mt={4}

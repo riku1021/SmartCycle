@@ -59,8 +59,8 @@ const UsersComponent: FC = () => {
     cursor: "pointer",
     padding: "12px 16px",
     textAlign: "left",
-    borderBottom: "1px solid #e2e8f0",
-    color: "#6b7280",
+    borderBottom: "1px solid var(--border)",
+    color: "var(--text2)",
     fontWeight: 600,
     fontSize: "0.85rem",
     whiteSpace: "nowrap",
@@ -68,7 +68,7 @@ const UsersComponent: FC = () => {
 
   const tdStyle: React.CSSProperties = {
     padding: "12px 16px",
-    borderBottom: "1px solid #e2e8f0",
+    borderBottom: "1px solid var(--border)",
     verticalAlign: "middle",
   };
 
@@ -93,7 +93,7 @@ const UsersComponent: FC = () => {
     <Layout title="ユーザー一覧" subtitle="開発者用ユーザー管理">
       <div
         style={{
-          background: "#fff",
+          background: "var(--surface)",
           borderRadius: "16px",
           boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
           overflow: "hidden",
@@ -106,7 +106,7 @@ const UsersComponent: FC = () => {
             justifyContent: "space-between",
             alignItems: "center",
             padding: "20px 24px",
-            borderBottom: "1px solid #e2e8f0",
+            borderBottom: "1px solid var(--border)",
           }}
         >
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>登録ユーザー一覧</h2>
@@ -118,7 +118,9 @@ const UsersComponent: FC = () => {
             style={{
               padding: "8px 14px",
               borderRadius: "8px",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border)",
+              background: "var(--bg)",
+              color: "var(--text)",
               fontSize: "0.9rem",
               width: "220px",
             }}
@@ -136,7 +138,7 @@ const UsersComponent: FC = () => {
         <div style={{ overflowX: "auto" }}>
           <table id="users-table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "#f8fafc" }}>
+              <tr style={{ background: "var(--bg)" }}>
                 <th style={thStyle} onClick={() => handleSort("id")}>
                   ユーザーID{sortIcon("id")}
                 </th>
@@ -180,7 +182,7 @@ const UsersComponent: FC = () => {
                           ...tdStyle,
                           fontFamily: "monospace",
                           fontSize: "0.8rem",
-                          color: "#64748b",
+                          color: "var(--text2)",
                           maxWidth: "140px",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -225,7 +227,9 @@ const UsersComponent: FC = () => {
                               style={{
                                 padding: "4px 8px",
                                 borderRadius: "6px",
-                                border: "1px solid #e2e8f0",
+                                border: "1px solid var(--border)",
+                                background: "var(--surface)",
+                                color: "var(--text)",
                                 fontSize: "0.9rem",
                               }}
                             >
@@ -260,8 +264,9 @@ const UsersComponent: FC = () => {
                               style={{
                                 padding: "4px 8px",
                                 borderRadius: "6px",
-                                border: "1px solid #e2e8f0",
-                                background: "#fff",
+                                border: "1px solid var(--border)",
+                                background: "var(--surface)",
+                                color: "var(--text)",
                                 fontSize: "0.8rem",
                                 cursor: "pointer",
                               }}
@@ -301,8 +306,9 @@ const UsersComponent: FC = () => {
                             style={{
                               padding: "6px 14px",
                               borderRadius: "6px",
-                              border: "1px solid #e2e8f0",
-                              background: isEditing ? "#f1f5f9" : "#fff",
+                              border: "1px solid var(--border)",
+                              background: isEditing ? "var(--bg)" : "var(--surface)",
+                              color: "var(--text)",
                               fontSize: "0.85rem",
                               cursor: "pointer",
                               whiteSpace: "nowrap",
@@ -327,7 +333,7 @@ const UsersComponent: FC = () => {
               padding: "12px 24px",
               color: "#94a3b8",
               fontSize: "0.85rem",
-              borderTop: "1px solid #e2e8f0",
+              borderTop: "1px solid var(--border)",
             }}
           >
             {filtered.length} 件 / 合計 {usersData?.length ?? 0} 件

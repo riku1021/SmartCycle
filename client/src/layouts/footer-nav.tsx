@@ -33,9 +33,9 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
       aria-label="メインナビゲーション"
       as="nav"
       backdropFilter="blur(8px)"
-      bg="rgba(255, 255, 255, 0.96)"
+      bg="var(--nav-bg)"
       borderTop="1px solid"
-      borderColor="#e2e8f0"
+      borderColor="var(--border)"
       bottom={0}
       display={{ base: "grid", md: "none" }}
       gridTemplateColumns={
@@ -59,7 +59,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           _hover={{ bg: "transparent" }}
           alignItems="center"
           bg="transparent"
-          color={isActivePath("/dashboard") ? "#4f46e5" : "#64748b"}
+          color={isActivePath("/dashboard") ? "#4f46e5" : "var(--text2)"}
           display="flex"
           flexDirection="column"
           fontSize="0.65rem"
@@ -87,7 +87,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           _hover={{ bg: "transparent" }}
           alignItems="center"
           bg="transparent"
-          color={isActivePath("/lots") ? "#4f46e5" : "#64748b"}
+          color={isActivePath("/lots") ? "#4f46e5" : "var(--text2)"}
           display="flex"
           flexDirection="column"
           fontSize="0.65rem"
@@ -115,7 +115,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           _hover={{ bg: "transparent" }}
           alignItems="center"
           bg="transparent"
-          color={isActivePath("/map") ? "#4f46e5" : "#64748b"}
+          color={isActivePath("/map") ? "#4f46e5" : "var(--text2)"}
           display="flex"
           flexDirection="column"
           fontSize="0.65rem"
@@ -143,7 +143,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           _hover={{ bg: "transparent" }}
           alignItems="center"
           bg="transparent"
-          color={isActivePath("/reservations") ? "#4f46e5" : "#64748b"}
+          color={isActivePath("/reservations") ? "#4f46e5" : "var(--text2)"}
           display="flex"
           flexDirection="column"
           fontSize="0.65rem"
@@ -171,7 +171,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
           _hover={{ bg: "transparent" }}
           alignItems="center"
           bg="transparent"
-          color={isActivePath("/gate-camera") ? "#4f46e5" : "#64748b"}
+          color={isActivePath("/gate-camera") ? "#4f46e5" : "var(--text2)"}
           display="flex"
           flexDirection="column"
           fontSize="0.65rem"
@@ -226,7 +226,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
         _hover={{ bg: "transparent" }}
         alignItems="center"
         bg="transparent"
-        color={isActivePath("/settings") ? "#4f46e5" : "#64748b"}
+        color={isActivePath("/settings") ? "#4f46e5" : "var(--text2)"}
         display="flex"
         flexDirection="column"
         fontSize="0.65rem"

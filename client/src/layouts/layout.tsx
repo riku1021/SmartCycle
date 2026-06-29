@@ -25,8 +25,8 @@ const Layout: FC<LayoutProps> = ({
 
   return (
     <Box
-      bg="#f8fafc"
-      color="#0f172a"
+      bg="var(--bg)"
+      color="var(--text)"
       display={{ base: "block", md: "flex" }}
       minH="100vh"
       width="100%"
