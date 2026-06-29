@@ -892,7 +892,15 @@ const MapComponent: FC = () => {
                     }}
                   >
                     {isFavorite && <FaStar style={{ color: "#f59e0b", flexShrink: 0 }} />}
-                    <span className="mini-item-name" style={{ flex: 1 }}>
+                    <span
+                      className="mini-item-name"
+                      style={{
+                        flex: 1,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
                       {lot.name}
                     </span>
                   </div>
@@ -920,7 +928,6 @@ const MapComponent: FC = () => {
             </div>
             <div className="btn-text-content">
               <span className="btn-main-label">目的地</span>
-              <span className="btn-sub-label">を検索する</span>
             </div>
           </button>
           {/* お気に入り */}
@@ -939,7 +946,6 @@ const MapComponent: FC = () => {
             </div>
             <div className="btn-text-content">
               <span className="btn-main-label">MY駐輪</span>
-              <span className="btn-sub-label">よく使う場所</span>
             </div>
           </button>
           {/* 予約 */}
@@ -953,7 +959,6 @@ const MapComponent: FC = () => {
             </div>
             <div className="btn-text-content">
               <span className="btn-main-label">予約</span>
-              <span className="btn-sub-label">予約の確認</span>
             </div>
           </button>
         </div>
