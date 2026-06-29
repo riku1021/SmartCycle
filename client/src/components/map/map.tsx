@@ -1,6 +1,5 @@
-import "leaflet/dist/leaflet.css";
 import { useNavigate } from "@tanstack/react-router";
-import L, { type GeoJSON, type Map as LeafletMap } from "leaflet";
+import { AdvancedMarker, APIProvider, Map as GoogleMap, useMap } from "@vis.gl/react-google-maps";
 import type { FC } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -27,6 +26,9 @@ import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
 
+import { GOOGLE_MAPS_API_KEY } from "@/config/env";
+const MAP_CENTER = { lat: 34.702485, lng: 135.495951 };
+
 type ParkingLot = {
   id: string;
   name: string;
@@ -39,9 +41,9 @@ type ParkingLot = {
   isEv3Linked?: boolean;
 };
 
+type LatLng = { lat: number; lng: number };
 type LotStatusClass = "free" | "few" | "full";
 
-const MAP_CENTER: [number, number] = [34.702485, 135.495951];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const toApiDateTime = (date: Date) => {
@@ -98,22 +100,6 @@ const lotStatusClass = (
   return "free";
 };
 
-const createLotMarkerIcon = (lot: ParkingLot) => {
-  const status = lotStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
-  const title = status === "full" ? "満" : String(lot.available_spots);
-  const pinColor = status === "full" ? "#ef4444" : status === "few" ? "#f59e0b" : "#10b981";
-  return L.divIcon({
-    className: "",
-    html: `<div style="width:44px;height:44px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.3);display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-weight:800;font-size:0.85rem;background:${pinColor};cursor:pointer;">
-          <span style="font-size:0.7rem;margin-bottom:2px;">P</span>
-          <span>${title}</span>
-        </div>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 44],
-  });
-};
-
-// モック通知
 const NOTIFICATIONS = [
   {
     id: 1,
@@ -138,26 +124,132 @@ const NOTIFICATIONS = [
   },
 ];
 
+type MapInnerProps = {
+  lots: ParkingLot[];
+  currentLatLng: [number, number];
+  routePath: LatLng[] | null;
+  onSelectLot: (id: string) => void;
+  onMapReady: (map: google.maps.Map) => void;
+};
+
+const MapInner: FC<MapInnerProps> = ({
+  lots,
+  currentLatLng,
+  routePath,
+  onSelectLot,
+  onMapReady,
+}) => {
+  const map = useMap();
+  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
+
+  useEffect(() => {
+    if (map) onMapReady(map);
+  }, [map, onMapReady]);
+
+  useEffect(() => {
+    if (!map) return;
+
+    if (routePolylineRef.current) {
+      routePolylineRef.current.setMap(null);
+      routePolylineRef.current = null;
+    }
+
+    if (routePath && routePath.length > 0) {
+      routePolylineRef.current = new google.maps.Polyline({
+        path: routePath,
+        geodesic: true,
+        strokeColor: "#4F46E5",
+        strokeOpacity: 0.9,
+        strokeWeight: 5,
+      });
+      routePolylineRef.current.setMap(map);
+
+      const bounds = new google.maps.LatLngBounds();
+      for (const p of routePath) bounds.extend(p);
+      map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+    }
+
+    return () => {
+      if (routePolylineRef.current) {
+        routePolylineRef.current.setMap(null);
+        routePolylineRef.current = null;
+      }
+    };
+  }, [map, routePath]);
+
+  return (
+    <>
+      <AdvancedMarker position={{ lat: currentLatLng[0], lng: currentLatLng[1] }} title="現在地">
+        <div
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            background: "#4F46E5",
+            border: "3px solid #fff",
+            boxShadow: "0 2px 6px rgba(79,70,229,0.5)",
+          }}
+        />
+      </AdvancedMarker>
+
+      {lots.map((lot) => {
+        const status = lotStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
+        const title = status === "full" ? "満" : String(lot.available_spots);
+        const pinColor = status === "full" ? "#ef4444" : status === "few" ? "#f59e0b" : "#10b981";
+        return (
+          <AdvancedMarker
+            key={lot.id}
+            position={{ lat: lot.latitude, lng: lot.longitude }}
+            title={lot.name}
+            onClick={() => onSelectLot(lot.id)}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                border: "3px solid #fff",
+                boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "#fff",
+                fontWeight: 800,
+                fontSize: "0.85rem",
+                background: pinColor,
+                cursor: "pointer",
+              }}
+            >
+              <span style={{ fontSize: "0.7rem", marginBottom: 2 }}>P</span>
+              <span>{title}</span>
+            </div>
+          </AdvancedMarker>
+        );
+      })}
+    </>
+  );
+};
+
 const MapComponent: FC = () => {
   const navigate = useNavigate();
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<LeafletMap | null>(null);
-  const userMarkerRef = useRef<L.CircleMarker | null>(null);
-  const routeLayerRef = useRef<GeoJSON | null>(null);
-  const lotMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const mapRef = useRef<google.maps.Map | null>(null);
 
   const [lots, setLots] = useState<ParkingLot[]>(INITIAL_LOTS);
-  const [currentLatLng, setCurrentLatLng] = useState<[number, number]>(MAP_CENTER);
+  const [currentLatLng, setCurrentLatLng] = useState<[number, number]>([
+    MAP_CENTER.lat,
+    MAP_CENTER.lng,
+  ]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [isRouting, setIsRouting] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [mapMessage, setMapMessage] = useState("駐輪場を選択してください");
+  const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
 
-  // ---- リアルタイム追跡の停止 ----
   const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -166,7 +258,6 @@ const MapComponent: FC = () => {
     setIsTracking(false);
   }, []);
 
-  // UI 状態
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotif, setShowNotif] = useState(false);
@@ -179,7 +270,6 @@ const MapComponent: FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const showAdminMenu = isAdminOrDevUser();
-
   const unreadCount = notifications.filter((n) => n.unread).length;
   const selectedLot = selectedLotId ? lots.find((l) => l.id === selectedLotId) : null;
 
@@ -187,6 +277,23 @@ const MapComponent: FC = () => {
     (available: number, total: number, isEv3Linked?: boolean): LotStatusClass =>
       lotStatusClass(available, total, isEv3Linked),
     []
+  );
+
+  const handleMapReady = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
+
+  const handleSelectLot = useCallback(
+    (id: string) => {
+      const lot = lots.find((l) => l.id === id);
+      setSelectedLotId(id);
+      setPanelOpen(true);
+      setShowSearch(false);
+      if (lot) {
+        mapRef.current?.panTo({ lat: lot.latitude, lng: lot.longitude });
+      }
+    },
+    [lots]
   );
 
   useEffect(() => {
@@ -245,76 +352,6 @@ const MapComponent: FC = () => {
     };
   }, []);
 
-  // ---- マップ初期化 ----
-  useEffect(() => {
-    const mapContainer = mapContainerRef.current;
-    if (!mapContainer || mapRef.current) return;
-
-    const map = L.map(mapContainer, { zoomControl: false }).setView(MAP_CENTER, 15);
-    mapRef.current = map;
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
-
-    userMarkerRef.current = L.circleMarker(MAP_CENTER, {
-      color: "#4F46E5",
-      fillColor: "#4F46E5",
-      fillOpacity: 0.85,
-      radius: 8,
-      weight: 2,
-    })
-      .addTo(map)
-      .bindPopup("現在地");
-
-    const resizeMap = () => map.invalidateSize();
-    const resizeTimer = window.setTimeout(resizeMap, 120);
-    window.addEventListener("resize", resizeMap);
-
-    return () => {
-      window.clearTimeout(resizeTimer);
-      window.removeEventListener("resize", resizeMap);
-      lotMarkersRef.current.clear();
-      map.remove();
-      mapRef.current = null;
-      userMarkerRef.current = null;
-      routeLayerRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    const activeLotIds = new Set(lots.map((lot) => lot.id));
-    lotMarkersRef.current.forEach((marker, lotId) => {
-      if (!activeLotIds.has(lotId)) {
-        marker.remove();
-        lotMarkersRef.current.delete(lotId);
-      }
-    });
-
-    lots.forEach((lot) => {
-      let marker = lotMarkersRef.current.get(lot.id);
-      if (!marker) {
-        marker = L.marker([lot.latitude, lot.longitude], {
-          icon: createLotMarkerIcon(lot),
-        }).addTo(map);
-        lotMarkersRef.current.set(lot.id, marker);
-        marker.on("click", () => {
-          setSelectedLotId(lot.id);
-          setPanelOpen(true);
-          setShowSearch(false);
-          map.panTo([lot.latitude, lot.longitude]);
-        });
-      }
-      marker.setLatLng([lot.latitude, lot.longitude]);
-      marker.setIcon(createLotMarkerIcon(lot));
-    });
-  }, [lots]);
-
-  // ---- 現在地取得・追跡トグル ----
   const handleLocateUser = () => {
     if (!navigator.geolocation) {
       setMapMessage("このブラウザは位置情報に対応していません");
@@ -332,8 +369,8 @@ const MapComponent: FC = () => {
       (pos) => {
         const ll: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setCurrentLatLng(ll);
-        userMarkerRef.current?.setLatLng(ll);
-        mapRef.current?.flyTo(ll, 16);
+        mapRef.current?.panTo({ lat: ll[0], lng: ll[1] });
+        mapRef.current?.setZoom(16);
         setMapMessage("位置を特定しました。追跡を開始します。");
         setIsLocating(false);
         setIsTracking(true);
@@ -342,7 +379,6 @@ const MapComponent: FC = () => {
           (p) => {
             const newLL: [number, number] = [p.coords.latitude, p.coords.longitude];
             setCurrentLatLng(newLL);
-            userMarkerRef.current?.setLatLng(newLL);
           },
           () => {
             setMapMessage("追跡中にエラーが発生しました");
@@ -363,56 +399,43 @@ const MapComponent: FC = () => {
     return () => stopTracking();
   }, [stopTracking]);
 
-  // ---- ルート検索 ----
   const handleRoute = async () => {
     if (!selectedLot || !panelOpen) return;
-    const map = mapRef.current;
-    if (!map) return;
 
     setIsRouting(true);
     setMapMessage("ルートを計算しています...");
+    setRoutePath(null);
+
     try {
-      if (routeLayerRef.current) {
-        map.removeLayer(routeLayerRef.current);
-        routeLayerRef.current = null;
-      }
-      const url = `https://router.project-osrm.org/route/v1/bicycle/${currentLatLng[1]},${currentLatLng[0]};${selectedLot.longitude},${selectedLot.latitude}?overview=full&geometries=geojson`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("route failed");
-      const data = (await res.json()) as {
-        routes?: Array<{ duration: number; geometry: GeoJSON.GeoJsonObject }>;
-      };
-      const route = data.routes?.[0];
-      if (!route) throw new Error("no route");
-      routeLayerRef.current = L.geoJSON(route.geometry, {
-        style: { color: "#4F46E5", weight: 5, opacity: 0.9 },
-      }).addTo(map);
-      map.fitBounds(routeLayerRef.current.getBounds(), { padding: [40, 40] });
-      setMapMessage(`自転車で約 ${Math.ceil(route.duration / 60)} 分のルートです。`);
+      const directionsService = new google.maps.DirectionsService();
+      const result = await directionsService.route({
+        origin: { lat: currentLatLng[0], lng: currentLatLng[1] },
+        destination: { lat: selectedLot.latitude, lng: selectedLot.longitude },
+        travelMode: google.maps.TravelMode.BICYCLING,
+      });
+
+      const route = result.routes[0];
+      if (!route || !route.legs[0]) throw new Error("no route");
+
+      const path = route.overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
+      setRoutePath(path);
+
+      const durationSec = route.legs[0].duration?.value ?? 0;
+      setMapMessage(`自転車で約 ${Math.ceil(durationSec / 60)} 分のルートです。`);
     } catch {
-      setMapMessage("Google Mapsでルートを開きます。");
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&origin=${currentLatLng[0]},${currentLatLng[1]}&destination=${selectedLot.latitude},${selectedLot.longitude}&travelmode=bicycling`,
-        "_blank",
-        "noopener,noreferrer"
-      );
+      setMapMessage("ルートの取得に失敗しました。");
     } finally {
       setIsRouting(false);
     }
   };
 
-  // ---- 詳細パネル閉じる ----
   const handleClosePanel = () => {
     setPanelOpen(false);
     setSelectedLotId(null);
     setReserveSuccess(false);
-    if (routeLayerRef.current && mapRef.current) {
-      mapRef.current.removeLayer(routeLayerRef.current);
-      routeLayerRef.current = null;
-    }
+    setRoutePath(null);
   };
 
-  // ---- 予約する ----
   const handleReserve = async () => {
     if (!selectedLot) return;
     if (!UUID_PATTERN.test(selectedLot.id)) {
@@ -459,7 +482,6 @@ const MapComponent: FC = () => {
     }
   };
 
-  // ---- 検索フィルタ ----
   const filteredLots = searchQuery.trim()
     ? lots.filter(
         (l) =>
@@ -476,7 +498,26 @@ const MapComponent: FC = () => {
 
   return (
     <div id="app-layout" className="full-map-screen">
-      <div id="map" ref={mapContainerRef} />
+      <div id="map">
+        <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+          <GoogleMap
+            style={{ width: "100%", height: "100%" }}
+            defaultCenter={MAP_CENTER}
+            defaultZoom={15}
+            gestureHandling="greedy"
+            disableDefaultUI
+            mapId="DEMO_MAP_ID"
+          >
+            <MapInner
+              lots={lots}
+              currentLatLng={currentLatLng}
+              routePath={routePath}
+              onSelectLot={handleSelectLot}
+              onMapReady={handleMapReady}
+            />
+          </GoogleMap>
+        </APIProvider>
+      </div>
 
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
@@ -498,7 +539,6 @@ const MapComponent: FC = () => {
           </div>
         </div>
         <div className="app-top-actions">
-          {/* 現在地ボタン */}
           <button
             type="button"
             className={`top-action-btn locate-btn ${isTracking ? "active-tracking" : ""}`}
@@ -509,7 +549,6 @@ const MapComponent: FC = () => {
             {isLocating ? <div className="spinner-mini" /> : <FaLocationCrosshairs />}
           </button>
 
-          {/* 通知ボタン */}
           <button
             type="button"
             className="top-action-btn notif-bell-btn"
@@ -712,7 +751,7 @@ const MapComponent: FC = () => {
                     setPanelOpen(true);
                     setShowSearch(false);
                     setSearchQuery("");
-                    mapRef.current?.panTo([lot.latitude, lot.longitude]);
+                    mapRef.current?.panTo({ lat: lot.latitude, lng: lot.longitude });
                   }}
                 >
                   <div className="result-main">
@@ -757,6 +796,7 @@ const MapComponent: FC = () => {
             width: "100%",
           }}
         />
+
         <div className="bottom-left-panel">
           <div className="bottom-panel-label">
             <FaLocationDot style={{ display: "inline-block" }} /> 周辺の駐輪場
@@ -779,7 +819,7 @@ const MapComponent: FC = () => {
                   onClick={() => {
                     setSelectedLotId(lot.id);
                     setPanelOpen(true);
-                    mapRef.current?.panTo([lot.latitude, lot.longitude]);
+                    mapRef.current?.panTo({ lat: lot.latitude, lng: lot.longitude });
                   }}
                 >
                   <span className="mini-item-name">{lot.name}</span>
@@ -791,7 +831,6 @@ const MapComponent: FC = () => {
         </div>
 
         <div className="bottom-right-panel">
-          {/* 目的地検索 */}
           <button
             type="button"
             className="right-panel-btn destination-btn"
@@ -809,7 +848,6 @@ const MapComponent: FC = () => {
               <span className="btn-sub-label">を検索する</span>
             </div>
           </button>
-          {/* MYページ */}
           <button
             type="button"
             className="right-panel-btn my-btn"
@@ -823,7 +861,6 @@ const MapComponent: FC = () => {
               <span className="btn-sub-label">設定・通知</span>
             </div>
           </button>
-          {/* 利用履歴 */}
           <button
             type="button"
             className="right-panel-btn history-btn"
@@ -1010,6 +1047,7 @@ const MapComponent: FC = () => {
           </div>
         </div>
       )}
+
       {/* ===== サイドドロワー (Admin/Dev) ===== */}
       <MapSideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </div>
