@@ -433,7 +433,6 @@ dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "email-validator" },
-    { name = "ev3-dc" },
     { name = "fastapi" },
     { name = "gunicorn" },
     { name = "httpx" },
@@ -455,10 +454,12 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "ev3-dc" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "requests" },
     { name = "ruff" },
     { name = "types-requests" },
 ]
@@ -472,7 +473,6 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.14.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "email-validator", specifier = ">=2.2.0" },
-    { name = "ev3-dc" },
     { name = "fastapi", specifier = ">=0.121.0" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -492,10 +492,12 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "ev3-dc" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.25.0" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
+    { name = "requests", specifier = ">=2.31.0" },
     { name = "ruff", specifier = ">=0.14.4" },
     { name = "types-requests", specifier = ">=2.32.0" },
 ]
