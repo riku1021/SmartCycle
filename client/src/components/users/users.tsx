@@ -7,12 +7,14 @@ import Layout from "@/layouts/layout";
 const ROLE_LABELS: Record<string, string> = {
   admin: "管理者",
   dev: "開発者",
+  operator: "駐輪場管理業者",
   user: "一般",
 };
 
 const ROLE_STYLE: Record<string, { bg: string; color: string }> = {
   admin: { bg: "#fee2e2", color: "#991b1b" },
   dev: { bg: "#dcfce7", color: "#166534" },
+  operator: { bg: "#e0f2fe", color: "#075985" },
   user: { bg: "#f1f5f9", color: "#475569" },
 };
 

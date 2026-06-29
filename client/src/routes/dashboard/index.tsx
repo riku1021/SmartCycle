@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import DashboardComponent from "@/components/dashboard/dashboard";
-import { isAdminOrDevUser } from "@/lib/adminRole";
+import { isDashboardUser } from "@/lib/adminRole";
 import { getAccessToken } from "@/lib/apiClient";
 
 export const Route = createFileRoute("/dashboard/")({
@@ -8,7 +8,7 @@ export const Route = createFileRoute("/dashboard/")({
     if (!getAccessToken()) {
       throw redirect({ to: "/login" });
     }
-    if (!isAdminOrDevUser()) {
+    if (!isDashboardUser()) {
       throw redirect({ to: "/map" });
     }
   },

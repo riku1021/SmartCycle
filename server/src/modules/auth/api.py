@@ -122,7 +122,7 @@ class UserDetailOut(UserOut):
 
 
 # 権限を固定するシードユーザーのメールアドレス
-FIXED_ROLE_EMAILS = {"admin@mail.com", "dev@mail.com", "user@mail.com"}
+FIXED_ROLE_EMAILS = {"admin@mail.com", "dev@mail.com", "operator@mail.com", "user@mail.com"}
 
 
 @router.get("/me", response_model=UserOut)
@@ -161,6 +161,8 @@ async def list_users(
             role = "admin"
         elif u.email == "dev@mail.com":
             role = "dev"
+        elif u.email == "operator@mail.com":
+            role = "operator"
         elif u.email == "user@mail.com":
             role = "user"
         else:

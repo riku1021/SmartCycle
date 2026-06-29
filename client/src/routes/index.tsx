@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { isAdminUser } from "@/lib/adminRole";
+import { isAdminUser, isOperatorUser } from "@/lib/adminRole";
 import { getAccessToken } from "@/lib/apiClient";
 
 const RootEntryComponent = () => {
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
     if (!token) {
       throw redirect({ to: "/login" });
     }
-    if (isAdminUser()) {
+    if (isAdminUser() || isOperatorUser()) {
       throw redirect({ to: "/dashboard" });
     }
     throw redirect({ to: "/map" });

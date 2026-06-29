@@ -20,6 +20,7 @@ import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as GateCameraIndexRouteImport } from './routes/gate-camera/index'
 import { Route as ExampleIndexRouteImport } from './routes/example/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as LotsRegisterIndexRouteImport } from './routes/lots/register/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LotsRegisterIndexRoute = LotsRegisterIndexRouteImport.update({
+  id: '/lots/register/',
+  path: '/lots/register/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/reservations/': typeof ReservationsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/users/': typeof UsersIndexRoute
+  '/lots/register/': typeof LotsRegisterIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/reservations': typeof ReservationsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/users': typeof UsersIndexRoute
+  '/lots/register': typeof LotsRegisterIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/reservations/': typeof ReservationsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/users/': typeof UsersIndexRoute
+  '/lots/register/': typeof LotsRegisterIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/reservations/'
     | '/settings/'
     | '/users/'
+    | '/lots/register/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/reservations'
     | '/settings'
     | '/users'
+    | '/lots/register'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/reservations/'
     | '/settings/'
     | '/users/'
+    | '/lots/register/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   ReservationsIndexRoute: typeof ReservationsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   UsersIndexRoute: typeof UsersIndexRoute
+  LotsRegisterIndexRoute: typeof LotsRegisterIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lots/register/': {
+      id: '/lots/register/'
+      path: '/lots/register'
+      fullPath: '/lots/register/'
+      preLoaderRoute: typeof LotsRegisterIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReservationsIndexRoute: ReservationsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   UsersIndexRoute: UsersIndexRoute,
+  LotsRegisterIndexRoute: LotsRegisterIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

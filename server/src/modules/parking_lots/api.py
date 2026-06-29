@@ -1,16 +1,21 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.db.models.parking_lot import ParkingLot
 from src.infrastructure.db.models.parking_status import ParkingStatus
+from src.infrastructure.db.models.user import User
 from src.infrastructure.db.session import get_db
+from src.modules.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/parking-lots", tags=["parking-lots"])
+
+AvailabilitySourceType = Literal["gate_camera", "overhead_camera", "touch_sensor"]
 
 
 class ParkingLotOut(BaseModel):
@@ -24,6 +29,29 @@ class ParkingLotOut(BaseModel):
     price_per_hour: int
     created_at: datetime
     updated_at: datetime
+
+
+class ParkingLotCreateBody(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    total_spots: int = Field(ge=1)
+    price_per_hour: int = Field(ge=1)
+    availability_source_type: AvailabilitySourceType = "touch_sensor"
+
+
+def _effective_role(user: User) -> str:
+    if user.email == "operator@mail.com":
+        return "operator"
+    return user.role
+
+
+def _ensure_operator(user: User) -> None:
+    if _effective_role(user) != "operator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied (Operator only)",
+        )
 
 
 def _to_parking_lot_out(lot: ParkingLot, status_row: ParkingStatus | None) -> ParkingLotOut:
@@ -51,6 +79,45 @@ async def list_parking_lots(session: AsyncSession = Depends(get_db)) -> list[Par
     statuses = await _load_statuses_by_lot_id(session)
     result = await session.execute(select(ParkingLot).order_by(ParkingLot.name.asc()))
     return [_to_parking_lot_out(lot, statuses.get(lot.id)) for lot in result.scalars()]
+
+
+@router.post("", response_model=ParkingLotOut, status_code=status.HTTP_201_CREATED)
+async def create_parking_lot(
+    body: ParkingLotCreateBody,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ParkingLotOut:
+    _ensure_operator(current_user)
+
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="name must not be blank",
+        )
+
+    lot = ParkingLot(
+        name=name,
+        latitude=body.latitude,
+        longitude=body.longitude,
+        owner_id=current_user.id,
+        availability_source_type=body.availability_source_type,
+        total_spots=body.total_spots,
+        price_per_hour=body.price_per_hour,
+    )
+    session.add(lot)
+    await session.flush()
+
+    status_row = ParkingStatus(
+        parking_lot_id=lot.id,
+        available_spots=body.total_spots,
+        is_full=False,
+    )
+    session.add(status_row)
+    await session.flush()
+    await session.refresh(lot)
+    await session.refresh(status_row)
+    return _to_parking_lot_out(lot, status_row)
 
 
 @router.get("/{parking_lot_id}", response_model=ParkingLotOut)

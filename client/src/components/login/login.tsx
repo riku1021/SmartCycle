@@ -114,7 +114,7 @@ const LoginComponent: FC = () => {
     setIsSubmitting(true);
     try {
       const role = await submitAuth({ mode, email, password, name: name || undefined });
-      if (role === "admin") {
+      if (role === "admin" || role === "operator") {
         await navigate({ to: "/dashboard" });
       } else {
         await navigate({ to: "/map" });

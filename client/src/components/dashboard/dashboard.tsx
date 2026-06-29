@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { useState } from "react";
 import { FaArrowRightFromBracket } from "react-icons/fa6";
 import { fetchDashboardSummary } from "@/api/parking-status";
+import { isOperatorUser } from "@/lib/adminRole";
 import { clearAccessToken } from "@/lib/apiClient";
 import { showConfirmationAlert } from "@/shared/alerts/alerts";
 
@@ -158,6 +159,7 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
 const DashboardComponent: FC = () => {
   const navigate = useNavigate();
   const [activeScreen, setActiveScreen] = useState("dashboard");
+  const isOperator = isOperatorUser();
 
   const { data, isLoading } = useQuery({
     queryKey: ["dashboardSummary"],
@@ -326,7 +328,11 @@ const DashboardComponent: FC = () => {
               <button
                 type="button"
                 className="primary-btn"
-                onClick={() => alert("新規登録機能は開発中です")}
+                onClick={() =>
+                  isOperator
+                    ? void navigate({ to: "/lots/register" })
+                    : alert("新規登録機能は開発中です")
+                }
               >
                 + 新規駐輪場を追加
               </button>

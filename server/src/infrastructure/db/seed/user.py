@@ -1,7 +1,7 @@
 """開発・検証用のテストアカウントを冪等に投入するシード処理。
 
 クライアント側 (client/src/lib/adminRole.ts) のロール判定で参照される
-3 アカウント (admin / dev / user) を、新規 DB でも `docker compose up` 直後から
+4 アカウント (admin / dev / user / operator) を、新規 DB でも `docker compose up` 直後から
 ログインできるように初期投入する。
 
 冪等性:
@@ -26,14 +26,21 @@ class _SeedUser:
     email: str
     password: str
     name: str
+    role: str
 
 
 # クライアント側 (client/src/lib/adminRole.ts) と同じ値を使用する。
 # パスワードを変更する場合はクライアント側および docs/test-accounts.md も同時に更新する。
 _SEED_USERS: tuple[_SeedUser, ...] = (
-    _SeedUser(email="admin@mail.com", password="admin1234", name="管理者ユーザー"),
-    _SeedUser(email="dev@mail.com", password="dev1234", name="開発者ユーザー"),
-    _SeedUser(email="user@mail.com", password="user1234", name="一般ユーザー"),
+    _SeedUser(email="admin@mail.com", password="admin1234", name="管理者ユーザー", role="admin"),
+    _SeedUser(email="dev@mail.com", password="dev1234", name="開発者ユーザー", role="dev"),
+    _SeedUser(email="user@mail.com", password="user1234", name="一般ユーザー", role="user"),
+    _SeedUser(
+        email="operator@mail.com",
+        password="operator1234",
+        name="駐輪場管理業者",
+        role="operator",
+    ),
 )
 
 
@@ -55,12 +62,17 @@ async def seed_dev_users(session_maker: async_sessionmaker[AsyncSession]) -> Non
                     if user.name != seed.name:
                         user.name = seed.name
                         updated.append(seed.email)
+                    if user.email == "operator@mail.com" and user.role != seed.role:
+                        user.role = seed.role
+                        if seed.email not in updated:
+                            updated.append(seed.email)
                     continue
                 session.add(
                     User(
                         email=seed.email,
                         name=seed.name,
                         password_hash=_pwd.hash(seed.password),
+                        role=seed.role,
                     )
                 )
                 inserted.append(seed.email)

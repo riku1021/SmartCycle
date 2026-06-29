@@ -1,7 +1,7 @@
 import { Box, Button } from "@chakra-ui/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
-import { FaCamera, FaGear, FaList, FaMapLocationDot, FaUsers } from "react-icons/fa6";
+import { FaCamera, FaGear, FaList, FaMapLocationDot, FaSquarePlus, FaUsers } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
 import { getUserRole } from "@/lib/adminRole";
 import { clearAccessToken } from "@/lib/apiClient";
@@ -17,13 +17,15 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
   const role = getUserRole();
   const isAdmin = role === "admin";
   const isDev = role === "dev";
-  const canViewDashboard = isAdmin || isDev;
+  const isOperator = role === "operator";
+  const canViewDashboard = isAdmin || isDev || isOperator;
   const canViewCamera = isDev;
   const canViewGeneralUserPages = !isAdmin;
 
   const handleMove = async (
     to:
       | "/dashboard"
+      | "/lots/register"
       | "/users"
       | "/map"
       | "/lots"
@@ -115,6 +117,31 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
           >
             <FaUsers />
             ユーザー一覧
+          </Button>
+        ) : null}
+        {isOperator ? (
+          <Button
+            alignItems="center"
+            bg={isActivePath("/lots/register") ? "#4f46e5" : "transparent"}
+            borderRadius="12px"
+            boxShadow={
+              isActivePath("/lots/register") ? "0 4px 6px -1px rgba(79, 70, 229, 0.3)" : "none"
+            }
+            color={isActivePath("/lots/register") ? "#ffffff" : "#64748b"}
+            display="flex"
+            fontWeight={600}
+            gap={2.5}
+            justifyContent="flex-start"
+            onClick={() => void handleMove("/lots/register")}
+            px={4}
+            py={3}
+            variant="ghost"
+            _hover={{
+              bg: isActivePath("/lots/register") ? "#4338ca" : "rgba(79, 70, 229, 0.1)",
+            }}
+          >
+            <FaSquarePlus />
+            駐輪場登録
           </Button>
         ) : null}
         {canViewGeneralUserPages ? (

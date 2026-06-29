@@ -21,7 +21,7 @@ import {
 } from "react-icons/fa6";
 import { fetchParkingLots } from "@/api/parking-lots";
 import { createReservation } from "@/api/reservations";
-import { isAdminOrDevUser, isDevUser } from "@/lib/adminRole";
+import { isDashboardUser, isDevUser } from "@/lib/adminRole";
 import { EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
@@ -177,7 +177,7 @@ const MapComponent: FC = () => {
   const [isReserving, setIsReserving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const showAdminMenu = isAdminOrDevUser();
+  const showAdminMenu = isDashboardUser();
 
   const unreadCount = notifications.filter((n) => n.unread).length;
   const selectedLot = selectedLotId ? lots.find((l) => l.id === selectedLotId) : null;

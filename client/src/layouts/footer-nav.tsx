@@ -14,6 +14,7 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
   const role = getUserRole();
   const isAdmin = role === "admin";
   const isDev = role === "dev";
+  const isOperator = role === "operator";
   const handleMove = async (
     to:
       | "/dashboard"
@@ -37,14 +38,22 @@ const FooterNav: FC<FooterNavProps> = ({ isActivePath }) => {
       borderColor="#e2e8f0"
       bottom={0}
       display={{ base: "grid", md: "none" }}
-      gridTemplateColumns={isAdmin ? "repeat(2, 1fr)" : isDev ? "repeat(7, 1fr)" : "repeat(4, 1fr)"}
+      gridTemplateColumns={
+        isAdmin
+          ? "repeat(2, 1fr)"
+          : isDev
+            ? "repeat(7, 1fr)"
+            : isOperator
+              ? "repeat(5, 1fr)"
+              : "repeat(4, 1fr)"
+      }
       h="74px"
       left={0}
       position="fixed"
       right={0}
       zIndex={2000}
     >
-      {isAdmin || isDev ? (
+      {isAdmin || isDev || isOperator ? (
         <Button
           _active={{ bg: "transparent" }}
           _hover={{ bg: "transparent" }}

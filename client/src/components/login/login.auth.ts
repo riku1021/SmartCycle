@@ -35,6 +35,8 @@ export async function submitAuth(params: {
     role = "admin";
   } else if (userEmail === "dev@mail.com") {
     role = "dev";
+  } else if (userEmail === "operator@mail.com") {
+    role = "operator";
   }
 
   setUserRole(role);
