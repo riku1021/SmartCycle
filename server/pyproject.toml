@@ -28,6 +28,7 @@ dependencies = [
     "ultralytics>=8.0",
     "pillow>=10.0",
     "opencv-python-headless>=4.0",
+    "ev3-dc",
 ]
 
 # =======================================
