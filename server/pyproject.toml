@@ -26,6 +26,8 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.36",
     "uvicorn[standard]>=0.38.0",
     "ultralytics>=8.0",
+    "torch>=2.0",
+    "torchvision>=0.15",
     "pillow>=10.0",
     "opencv-python-headless>=4.0",
     "ev3-dc",
@@ -150,3 +152,15 @@ show_missing = true
 constraint-dependencies = [
     "opencv-python-headless>=4.0",
 ]
+override-dependencies = [
+    "opencv-python-headless>=4.0",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
