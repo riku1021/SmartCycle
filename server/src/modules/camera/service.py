@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # COCO クラス ID: 1 = bicycle
 _BICYCLE_CLASS_ID = 1
 _CONFIDENCE_THRESHOLD = 0.25
-_MODEL_PATH = "yolov8n.pt"  # TODO:
+_MODEL_PATH = "yolov8n.pt"
 
 
 def _load_model() -> Any:
