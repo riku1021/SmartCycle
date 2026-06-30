@@ -17,11 +17,11 @@ const MapSideDrawer: FC<MapSideDrawerProps> = ({ isOpen, onClose }) => {
     <Drawer.Root open={isOpen} onOpenChange={(e) => !e.open && onClose()} placement="start">
       <Drawer.Backdrop />
       <Drawer.Positioner zIndex={2100}>
-        <Drawer.Content bg="white" height="100dvh" maxW="280px">
+        <Drawer.Content bg="var(--surface)" height="100dvh" maxW="280px">
           <Box
             alignItems="center"
             borderBottom="1px solid"
-            borderColor="#e2e8f0"
+            borderColor="var(--border)"
             color="#4f46e5"
             display="flex"
             justifyContent="space-between"
@@ -37,10 +37,11 @@ const MapSideDrawer: FC<MapSideDrawerProps> = ({ isOpen, onClose }) => {
             <Box
               as="button"
               aria-label="メニューを閉じる"
+              color="var(--text)"
               onClick={onClose}
               p={2}
               transition="color 0.2s"
-              _hover={{ color: "#4338ca" }}
+              _hover={{ color: "var(--primary-hover)" }}
             >
               <FaXmark size="1.4rem" />
             </Box>

@@ -2,32 +2,23 @@ import { Badge, Box, Button, Heading, HStack, SimpleGrid, Text } from "@chakra-u
 import axios from "axios";
 import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { fetchParkingStatus, type ParkingStatus } from "@/api/parking-status";
+import { fetchParkingLots, type ParkingLotResponse } from "@/api/parking-lots";
+import type { ParkingStatus } from "@/api/parking-status";
 import { API_BASE_URL } from "@/config/env";
 import Layout from "@/layouts/layout";
-import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
+import { EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 
 type ParkingAvailability = "空きあり" | "空きあり、残りわずか" | "空きなし";
 
 type Lot = {
-  id: number;
+  id: string;
   name: string;
   status: ParkingAvailability | string;
   walk: string;
   isEv3Linked?: boolean;
 };
 
-const initialLots: Lot[] = [
-  {
-    id: EV3_LINKED_PARKING_LOT_ID,
-    name: "梅田ステーション東",
-    status: "空きあり",
-    walk: "徒歩 4分",
-    isEv3Linked: true,
-  },
-  { id: 2, name: "中之島ゲート", status: "残りわずか", walk: "徒歩 8分" },
-  { id: 3, name: "本町サイクルデッキ", status: "満車", walk: "徒歩 3分" },
-];
+const initialLots: Lot[] = [];
 
 const availableCountToStatus = (count: number): ParkingAvailability => {
   if (count <= 0) return "空きなし";
@@ -48,6 +39,7 @@ const statusColor = (status: string): { bg: string; color: string } => {
 const LotsComponent: FC = () => {
   const [ev3Status, setEv3Status] = useState<ParkingStatus | null>(null);
   const [fetchError, setFetchError] = useState("");
+  const [apiLots, setApiLots] = useState<ParkingLotResponse[]>([]);
   const [fetchHint, setFetchHint] = useState("");
 
   useEffect(() => {
@@ -55,21 +47,25 @@ const LotsComponent: FC = () => {
 
     const tick = async () => {
       try {
-        const data = await fetchParkingStatus(EV3_LINKED_PARKING_LOT_ID);
+        const lotsData = await fetchParkingLots();
         if (cancelled) return;
-        setEv3Status(data);
+        setApiLots(lotsData);
+
+        // APIデータからタッチセンサー連携の駐輪場を探す
+        const touchSensorLot = lotsData.find((l) => l.availability_source_type === "touch_sensor");
+        if (touchSensorLot) {
+          setEv3Status({
+            parking_lot_id: touchSensorLot.id,
+            available_spots: touchSensorLot.available_spots,
+            updated_at: touchSensorLot.updated_at,
+          });
+        } else {
+          setEv3Status(null);
+        }
         setFetchError("");
         setFetchHint("");
       } catch (error) {
         if (cancelled) return;
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
-          setEv3Status(null);
-          setFetchError("");
-          setFetchHint(
-            "バックエンドに駐輪場 ID 1 のデータがまだありません。`server/scripts/ev3_touch_monitor.py` を起動すると初回 POST で表示されます（バックエンドは起動済みとみなします）。"
-          );
-          return;
-        }
         const detail =
           axios.isAxiosError(error) && typeof error.response?.data === "object"
             ? JSON.stringify(error.response.data)
@@ -94,27 +90,53 @@ const LotsComponent: FC = () => {
 
   const ev3Availability: ParkingAvailability | null = useMemo(() => {
     if (!ev3Status) return null;
-    return availableCountToStatus(ev3Status.available_count);
+    return availableCountToStatus(ev3Status.available_spots);
   }, [ev3Status]);
 
-  const lots = useMemo<Lot[]>(
-    () =>
-      initialLots.map((lot) =>
-        lot.isEv3Linked && ev3Availability ? { ...lot, status: ev3Availability } : lot
-      ),
-    [ev3Availability]
-  );
+  const lots = useMemo<Lot[]>(() => {
+    if (apiLots.length > 0) {
+      return apiLots.map((lot) => {
+        const isEv3Linked = lot.availability_source_type === "touch_sensor";
+        let statusStr = "空きあり";
+        if (lot.available_spots <= 0) statusStr = "満車";
+        else if (lot.available_spots <= lot.total_spots * 0.2) statusStr = "残りわずか";
+
+        if (isEv3Linked && ev3Availability) {
+          statusStr = ev3Availability;
+        }
+
+        return {
+          id: lot.id,
+          name: lot.name,
+          status: statusStr,
+          walk: "徒歩 --分",
+          isEv3Linked,
+        };
+      });
+    }
+
+    return initialLots.map((lot) =>
+      lot.isEv3Linked && ev3Availability ? { ...lot, status: ev3Availability } : lot
+    );
+  }, [ev3Availability, apiLots]);
 
   const pressedCount =
-    ev3Status !== null ? Math.max(EV3_TOTAL_SLOTS - ev3Status.available_count, 0) : null;
+    ev3Status !== null ? Math.max(EV3_TOTAL_SLOTS - ev3Status.available_spots, 0) : null;
 
   return (
     <Layout title="駐輪場一覧" subtitle="条件でフィルタしながら駐輪場を探せます">
-      <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" mb={4} p={6}>
+      <Box
+        bg="var(--surface)"
+        border="1px solid"
+        borderColor="var(--border)"
+        borderRadius="2xl"
+        mb={4}
+        p={6}
+      >
         <Heading fontSize="1.05rem" mb={3}>
           LEGO Mindstorms EV3 連携状況
         </Heading>
-        <Text color="#64748b" fontSize="0.9rem" mb={3}>
+        <Text color="var(--text2)" fontSize="0.9rem" mb={3}>
           EV3 のポート 1 / 2 / 3 のタッチセンサー押下個数が、
           「梅田ステーション東」の空き状況にリアルタイム反映されます。
         </Text>
@@ -129,9 +151,9 @@ const LotsComponent: FC = () => {
             {ev3Status ? "EV3 モニタ受信中" : "EV3 モニタ未受信"}
           </Badge>
           {ev3Status ? (
-            <Text color="#64748b" fontSize="0.85rem">
+            <Text color="var(--text2)" fontSize="0.85rem">
               押下数: <b>{pressedCount}</b> / {EV3_TOTAL_SLOTS} / 空き:{" "}
-              <b>{ev3Status.available_count}</b> / 更新: {ev3Status.updated_at}
+              <b>{ev3Status.available_spots}</b> / 更新: {ev3Status.updated_at}
             </Text>
           ) : null}
         </HStack>
@@ -148,7 +170,14 @@ const LotsComponent: FC = () => {
         ) : null}
       </Box>
 
-      <Box bg="white" border="1px solid" borderColor="#e2e8f0" borderRadius="2xl" mb={4} p={6}>
+      <Box
+        bg="var(--surface)"
+        border="1px solid"
+        borderColor="var(--border)"
+        borderRadius="2xl"
+        mb={4}
+        p={6}
+      >
         <HStack gap={2.5} mb={4}>
           <Button bg="#4f46e5" borderRadius="full" color="white" type="button">
             すべて
@@ -164,7 +193,13 @@ const LotsComponent: FC = () => {
           {lots.map((lot) => {
             const palette = statusColor(lot.status);
             return (
-              <Box border="1px solid" borderColor="#e2e8f0" borderRadius="lg" key={lot.id} p={3.5}>
+              <Box
+                border="1px solid"
+                borderColor="var(--border)"
+                borderRadius="lg"
+                key={lot.id}
+                p={3.5}
+              >
                 <HStack justify="space-between">
                   <Heading as="h3" fontSize="md">
                     {lot.name}
@@ -179,7 +214,7 @@ const LotsComponent: FC = () => {
                   <Badge bg={palette.bg} color={palette.color} px={2.5} py={1}>
                     {lot.status}
                   </Badge>
-                  <Text color="#64748b">{lot.walk}</Text>
+                  <Text color="var(--text2)">{lot.walk}</Text>
                 </HStack>
               </Box>
             );

@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import math
+import uuid
+
 import httpx
+from sqlalchemy import select
 
 from src.infrastructure.config.settings import Settings
+from src.infrastructure.db.models.parking_lot import ParkingLot
+from src.infrastructure.db.session import get_session_maker
 from src.infrastructure.logger.logger import logger
-from src.modules.line.catalog import get_lot_meta
-from src.modules.line.messages import (
-    build_few_spots_message,
-    build_full_message,
-    pick_recommendations,
-)
+from src.modules.line.messages import build_few_spots_message, build_full_message
 
 LINE_BROADCAST_URL = "https://api.line.me/v2/bot/message/broadcast"
 LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
@@ -35,33 +36,55 @@ class LineNotifier:
 
     async def notify_status_change(
         self,
-        parking_lot_id: int,
+        parking_lot_id: uuid.UUID,
         previous_available: int | None,
         new_available: int,
-        available_by_lot_id: dict[int, int],
+        available_by_lot_id: dict[uuid.UUID, int],
     ) -> None:
         if not self.enabled:
             return
         if previous_available == new_available:
             return
 
-        lot = get_lot_meta(parking_lot_id)
-        if lot is None:
-            return
-
         # 押下 1 台相当 (available=2) やそれ以上の空き: 通知なし
         if new_available >= 2:
             return
 
-        message: str | None = None
-        if new_available == 1 and previous_available != 1:
-            message = build_few_spots_message(lot.name)
-        elif new_available == 0 and previous_available != 0:
-            recommendations = pick_recommendations(lot, available_by_lot_id)
-            message = build_full_message(lot.name, recommendations)
+        session_maker = get_session_maker()
+        async with session_maker() as session:
+            lots_result = await session.execute(select(ParkingLot))
+            lots = lots_result.scalars().all()
 
-        if message is None:
-            return
+            lot = next((p_lot for p_lot in lots if p_lot.id == parking_lot_id), None)
+            if lot is None:
+                return
+
+            message: str | None = None
+            if new_available == 1 and previous_available != 1:
+                message = build_few_spots_message(lot.name)
+            elif new_available == 0 and previous_available != 0:
+                # Calculate distances and recommend top 2
+                def calc_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+                    return math.sqrt((lat1 - lat2) ** 2 + (lon1 - lon2) ** 2)
+
+                candidates = []
+                for other_lot in lots:
+                    if other_lot.id == lot.id:
+                        continue
+                    available = available_by_lot_id.get(other_lot.id, other_lot.total_spots)
+                    if available > 0:
+                        dist = calc_distance(
+                            lot.latitude, lot.longitude, other_lot.latitude, other_lot.longitude
+                        )
+                        candidates.append((dist, other_lot.name, available, other_lot.total_spots))
+
+                candidates.sort(key=lambda x: x[0])  # Sort by distance
+                top_recommendations = [(c[1], c[2], c[3]) for c in candidates[:2]]
+
+                message = build_full_message(lot.name, top_recommendations)
+
+            if message is None:
+                return
 
         await self._send_text(message)
 

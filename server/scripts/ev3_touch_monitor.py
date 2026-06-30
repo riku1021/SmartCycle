@@ -20,7 +20,8 @@ SmartCycle バックエンドの駐輪場ステータスをリアルタイム更
 
 必要に応じて環境変数で挙動を変更可能:
   EV3_MAC            EV3 の Bluetooth MAC アドレス (例: "00:16:53:82:75:10")
-  PARKING_LOT_ID     更新対象の駐輪場 ID (デフォルト: 1 = 梅田ステーション東)
+  PARKING_LOT_ID     更新対象の駐輪場 ID (デフォルト: 00000000-0000-0000-0000-000000000002 = ヨドバシ梅田タワー 駐輪場)
+                     ※ゲートカメラと同じID(梅田ステーション東)を指定すると状態が競合するため注意
   API_BASE_URL       SmartCycle バックエンドのベース URL (デフォルト: http://localhost:8000)
   POLL_INTERVAL_SEC  タッチセンサーの監視間隔 (秒、デフォルト 0.1)
 """
@@ -28,6 +29,7 @@ SmartCycle バックエンドの駐輪場ステータスをリアルタイム更
 from __future__ import annotations
 
 import os
+import random
 import sys
 import time
 from typing import TYPE_CHECKING
@@ -39,7 +41,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 EV3_MAC: str = os.environ.get("EV3_MAC", "00:16:53:82:75:10")
-PARKING_LOT_ID: int = int(os.environ.get("PARKING_LOT_ID", "1"))
+PARKING_LOT_ID: str = os.environ.get("PARKING_LOT_ID", "00000000-0000-0000-0000-000000000002")
 API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
 POLL_INTERVAL_SEC: float = float(os.environ.get("POLL_INTERVAL_SEC", "0.1"))
 
@@ -66,10 +68,15 @@ def post_parking_status(available_count: int) -> None:
     url = f"{API_BASE_URL}/api/iot/parking-status"
     payload = {
         "parking_lot_id": PARKING_LOT_ID,
-        "available_count": available_count,
+        "available_spots": available_count,
     }
     try:
-        response = requests.post(url, json=payload, timeout=3.0)
+        response = requests.post(
+            url,
+            json=payload,
+            timeout=3.0,
+            proxies={"http": "", "https": ""},
+        )
         response.raise_for_status()
     except requests.RequestException as err:
         print(f"[WARN] API 送信失敗: {err}", file=sys.stderr)
@@ -80,33 +87,58 @@ def count_pressed(touch_sensors: Iterable[ev3.Touch]) -> int:
     return sum(1 for sensor in touch_sensors if sensor.touched)
 
 
+def run_mock_loop() -> None:
+    """EV3未接続時にダミーの空き台数データを送信し続けるモックループ."""
+    print("[INFO] EV3未接続のため、Mockモード(ダミー送信)で稼働します。")
+    print("       5秒間隔でランダムな空き台数(0〜3)を送信します。")
+    print("Ctrl+C で終了します。")
+    try:
+        while True:
+            available = random.randint(0, TOTAL_SLOTS)
+            label = status_label_from_available(available)
+            print(f"[MOCK] ランダム送信 -> available_count={available} ({label})")
+            post_parking_status(available)
+            time.sleep(5.0)
+    except KeyboardInterrupt:
+        print("\nMockモードを停止しました。")
+
+
+def run_real_loop(ev3_hub: ev3.EV3) -> None:
+    """実機のEV3タッチセンサーを監視するループ."""
+    touch_sensors = [ev3.Touch(port, ev3_obj=ev3_hub) for port in TOUCH_PORTS]
+    last_count: int | None = None
+    try:
+        while True:
+            pressed = count_pressed(touch_sensors)
+            # 初回または押下数が変わったときだけ POST（起動直後に現在状態を登録）
+            if last_count is None or pressed != last_count:
+                available = max(TOTAL_SLOTS - pressed, 0)
+                label = status_label_from_available(available)
+                print(f"押下数 {pressed}/{TOTAL_SLOTS} -> available_count={available} ({label})")
+                post_parking_status(available)
+                last_count = pressed
+            time.sleep(POLL_INTERVAL_SEC)
+    except KeyboardInterrupt:
+        print("\n停止しました。")
+
+
 def main() -> int:
     print(
-        f"EV3 ({EV3_MAC}) に Bluetooth 接続します。"
+        f"EV3 ({EV3_MAC}) に Bluetooth 接続を試みます。\n"
         f"対象駐輪場 ID={PARKING_LOT_ID}, バックエンド={API_BASE_URL}"
     )
-    print("Ctrl+C で終了します。")
 
-    with ev3.EV3(protocol=ev3.BLUETOOTH, host=EV3_MAC) as ev3_hub:
-        touch_sensors = [ev3.Touch(port, ev3_obj=ev3_hub) for port in TOUCH_PORTS]
-
-        last_count: int | None = None
-        try:
-            while True:
-                pressed = count_pressed(touch_sensors)
-                # 初回または押下数が変わったときだけ POST（起動直後に現在状態を登録）
-                if last_count is None or pressed != last_count:
-                    available = max(TOTAL_SLOTS - pressed, 0)
-                    label = status_label_from_available(available)
-                    print(
-                        f"押下数 {pressed}/{TOTAL_SLOTS} -> available_count={available} ({label})"
-                    )
-                    post_parking_status(available)
-                    last_count = pressed
-                time.sleep(POLL_INTERVAL_SEC)
-        except KeyboardInterrupt:
-            print("\n停止しました。")
+    try:
+        # Bluetooth通信を試みる
+        with ev3.EV3(protocol=ev3.BLUETOOTH, host=EV3_MAC) as ev3_hub:
+            print("Ctrl+C で終了します。")
+            run_real_loop(ev3_hub)
             return 0
+    except Exception as e:
+        # 接続失敗時はMockモードへフォールバック
+        print(f"\n[WARN] EV3へのBluetooth接続に失敗しました: {e}", file=sys.stderr)
+        run_mock_loop()
+        return 0
 
 
 if __name__ == "__main__":

@@ -9,24 +9,22 @@ import {
   FaCalendarCheck,
   FaChevronLeft,
   FaCircleCheck,
-  FaClockRotateLeft,
   FaLocationArrow,
   FaLocationCrosshairs,
   FaLocationDot,
   FaMagnifyingGlass,
   FaMap,
-  FaUser,
+  FaStar,
   FaXmark,
 } from "react-icons/fa6";
 import { fetchParkingLots } from "@/api/parking-lots";
-import { fetchParkingStatus } from "@/api/parking-status";
 import { createReservation } from "@/api/reservations";
-import { isAdminOrDevUser } from "@/lib/adminRole";
-import { EV3_LINKED_PARKING_LOT_ID, EV3_POLL_INTERVAL_MS, EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
+import { isDevUser } from "@/lib/adminRole";
+import { EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
+import { GOOGLE_MAPS_API_KEY } from "@/config/env";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
 
-import { GOOGLE_MAPS_API_KEY } from "@/config/env";
 const MAP_CENTER = { lat: 34.702485, lng: 135.495951 };
 
 type ParkingLot = {
@@ -37,7 +35,7 @@ type ParkingLot = {
   available_spots: number;
   total_spots: number;
   price_per_hour: number;
-  externalStatusId?: number;
+  availability_source_type?: string;
   isEv3Linked?: boolean;
 };
 
@@ -62,7 +60,7 @@ const INITIAL_LOTS: ParkingLot[] = [
     available_spots: EV3_TOTAL_SLOTS,
     total_spots: EV3_TOTAL_SLOTS,
     price_per_hour: 100,
-    externalStatusId: EV3_LINKED_PARKING_LOT_ID,
+    availability_source_type: "touch_sensor",
     isEv3Linked: true,
   },
   {
@@ -269,7 +267,20 @@ const MapComponent: FC = () => {
   const [isReserving, setIsReserving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const showAdminMenu = isAdminOrDevUser();
+  const [favoriteLotIds, setFavoriteLotIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem("my-lots");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showFavorites, setShowFavorites] = useState(false);
+
+  const toggleFavorite = useCallback((id: string) => {
+    setFavoriteLotIds((prev) => {
+      const newFavs = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      localStorage.setItem("my-lots", JSON.stringify(newFavs));
+      return newFavs;
+    });
+  }, []);
+
   const unreadCount = notifications.filter((n) => n.unread).length;
   const selectedLot = selectedLotId ? lots.find((l) => l.id === selectedLotId) : null;
 
@@ -312,6 +323,8 @@ const MapComponent: FC = () => {
             available_spots: lot.available_spots,
             total_spots: lot.total_spots,
             price_per_hour: lot.price_per_hour,
+            availability_source_type: lot.availability_source_type,
+            isEv3Linked: lot.availability_source_type === "touch_sensor",
           }))
         );
       } catch {
@@ -330,22 +343,43 @@ const MapComponent: FC = () => {
 
     const tick = async () => {
       try {
-        const data = await fetchParkingStatus(EV3_LINKED_PARKING_LOT_ID);
+        const data = await fetchParkingLots();
         if (cancelled) return;
-        setLots((prev) =>
-          prev.map((lot) =>
-            lot.externalStatusId === EV3_LINKED_PARKING_LOT_ID
-              ? { ...lot, available_spots: data.available_count }
-              : lot
-          )
-        );
+        setLots((prev) => {
+          const newLots = [...prev];
+          for (const fetched of data) {
+            const idx = newLots.findIndex((l) => l.id === fetched.id);
+            if (idx >= 0) {
+              newLots[idx] = {
+                ...newLots[idx],
+                available_spots: fetched.available_spots,
+                total_spots: fetched.total_spots,
+                availability_source_type: fetched.availability_source_type,
+                isEv3Linked: fetched.availability_source_type === "touch_sensor",
+              };
+            } else {
+              newLots.push({
+                id: fetched.id,
+                name: fetched.name,
+                latitude: fetched.latitude,
+                longitude: fetched.longitude,
+                available_spots: fetched.available_spots,
+                total_spots: fetched.total_spots,
+                price_per_hour: fetched.price_per_hour,
+                availability_source_type: fetched.availability_source_type,
+                isEv3Linked: fetched.availability_source_type === "touch_sensor",
+              });
+            }
+          }
+          return newLots;
+        });
       } catch {
         // バックエンド未起動時は INITIAL_LOTS の表示を維持
       }
     };
 
     void tick();
-    const timer = window.setInterval(() => void tick(), EV3_POLL_INTERVAL_MS);
+    const timer = window.setInterval(() => void tick(), 3000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -522,17 +556,15 @@ const MapComponent: FC = () => {
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {showAdminMenu && (
-            <button
-              type="button"
-              className="top-action-btn"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="メニューを開く"
-              style={{ width: "42px", height: "42px" }}
-            >
-              <FaBars />
-            </button>
-          )}
+          <button
+            type="button"
+            className="top-action-btn"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="メニューを開く"
+            style={{ width: "42px", height: "42px" }}
+          >
+            <FaBars />
+          </button>
           <div className="app-logo-small">
             <FaBicycle style={{ fontSize: "1.4rem" }} />
             <span>SmartCycle</span>
@@ -556,6 +588,7 @@ const MapComponent: FC = () => {
             onClick={() => {
               setShowNotif(!showNotif);
               setShowSearch(false);
+              setShowFavorites(false);
             }}
           >
             <FaBell />
@@ -778,6 +811,71 @@ const MapComponent: FC = () => {
         </div>
       )}
 
+      {/* ===== MY駐輪場パネル ===== */}
+      {showFavorites && (
+        <div className="destination-search-panel">
+          <div className="dest-panel-header">
+            <button type="button" className="back-btn" onClick={() => setShowFavorites(false)}>
+              <FaChevronLeft />
+            </button>
+            <div style={{ flex: 1, fontWeight: 700, color: "var(--text)", paddingLeft: "8px" }}>
+              MY駐輪場
+            </div>
+          </div>
+          <div className="dest-results">
+            {lots
+              .filter((l) => favoriteLotIds.includes(l.id))
+              .map((lot) => {
+                const sc = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
+                const sl = sc === "full" ? "満車" : sc === "few" ? "残りわずか" : "空きあり";
+                return (
+                  <button
+                    type="button"
+                    key={lot.id}
+                    className="search-result-item"
+                    style={{
+                      width: "100%",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      padding: 0,
+                    }}
+                    onClick={() => {
+                      setSelectedLotId(lot.id);
+                      setPanelOpen(true);
+                      setShowFavorites(false);
+                      mapRef.current?.panTo({ lat: lot.latitude, lng: lot.longitude });
+                    }}
+                  >
+                    <div className="result-main">
+                      <div className="result-info">
+                        <div className="result-name">{lot.name}</div>
+                        <div className="result-meta">
+                          <span>
+                            空き {lot.available_spots}/{lot.total_spots}台
+                          </span>
+                          <span>¥{lot.price_per_hour}/時間</span>
+                        </div>
+                      </div>
+                      <span className={`result-status ${sc}`}>{sl}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            {favoriteLotIds.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--text2)" }}>
+                MY駐輪場に登録されている駐輪場はありません。
+                <br />
+                <br />
+                詳細パネルの <FaStar style={{ display: "inline-block", color: "#cbd5e1" }} />{" "}
+                アイコンから登録できます。
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ===== ボトムパネル（ログイン後） ===== */}
       <div
         className={`bottom-panel logged-panel ${panelOpen ? "collapsed" : ""}`}
@@ -804,6 +902,7 @@ const MapComponent: FC = () => {
           <div className="nearby-mini-list" id="nearby-mini-list">
             {lots.map((lot) => {
               const sClass = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
+              const isFavorite = favoriteLotIds.includes(lot.id);
               return (
                 <button
                   type="button"
@@ -822,7 +921,28 @@ const MapComponent: FC = () => {
                     mapRef.current?.panTo({ lat: lot.latitude, lng: lot.longitude });
                   }}
                 >
-                  <span className="mini-item-name">{lot.name}</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    {isFavorite && <FaStar style={{ color: "#f59e0b", flexShrink: 0 }} />}
+                    <span
+                      className="mini-item-name"
+                      style={{
+                        flex: 1,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {lot.name}
+                    </span>
+                  </div>
                   <span className={`badge ${sClass}`}>{lot.available_spots}台</span>
                 </button>
               );
@@ -838,6 +958,7 @@ const MapComponent: FC = () => {
               setShowSearch(true);
               setPanelOpen(false);
               setShowNotif(false);
+              setShowFavorites(false);
             }}
           >
             <div className="btn-icon-box dest">
@@ -845,33 +966,37 @@ const MapComponent: FC = () => {
             </div>
             <div className="btn-text-content">
               <span className="btn-main-label">目的地</span>
-              <span className="btn-sub-label">を検索する</span>
             </div>
           </button>
+          {/* お気に入り */}
           <button
             type="button"
             className="right-panel-btn my-btn"
-            onClick={() => void navigate({ to: "/settings" })}
+            onClick={() => {
+              setShowFavorites(true);
+              setPanelOpen(false);
+              setShowSearch(false);
+              setShowNotif(false);
+            }}
           >
             <div className="btn-icon-box my">
-              <FaUser />
+              <FaStar />
             </div>
             <div className="btn-text-content">
-              <span className="btn-main-label">MYページ</span>
-              <span className="btn-sub-label">設定・通知</span>
+              <span className="btn-main-label">MY駐輪</span>
             </div>
           </button>
+          {/* 予約 */}
           <button
             type="button"
             className="right-panel-btn history-btn"
             onClick={() => void navigate({ to: "/reservations" })}
           >
             <div className="btn-icon-box history">
-              <FaClockRotateLeft />
+              <FaCalendarCheck />
             </div>
             <div className="btn-text-content">
-              <span className="btn-main-label">利用履歴</span>
-              <span className="btn-sub-label">予約の確認</span>
+              <span className="btn-main-label">予約</span>
             </div>
           </button>
         </div>
@@ -883,11 +1008,31 @@ const MapComponent: FC = () => {
         <button type="button" className="panel-close-btn" onClick={handleClosePanel}>
           <FaXmark />
         </button>
-        <div className="panel-header">
-          <h2 id="lot-title">{selectedLot?.name ?? "駐輪場名"}</h2>
-          <span id="lot-status-badge" className={`badge ${statusClass}`}>
-            {statusLabel}
-          </span>
+        <div
+          className="panel-header"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
+        >
+          <div>
+            <h2 id="lot-title">{selectedLot?.name ?? "駐輪場名"}</h2>
+            <span id="lot-status-badge" className={`badge ${statusClass}`}>
+              {statusLabel}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => selectedLot && toggleFavorite(selectedLot.id)}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "1.5rem",
+              color: selectedLot && favoriteLotIds.includes(selectedLot.id) ? "#f59e0b" : "#cbd5e1",
+              cursor: "pointer",
+              padding: "4px",
+            }}
+            title="MY駐輪場に登録/解除"
+          >
+            <FaStar />
+          </button>
         </div>
         <div className="panel-body">
           <div className="stat-row">
@@ -923,7 +1068,7 @@ const MapComponent: FC = () => {
             <FaCircleCheck /> 予約完了済み
           </div>
         )}
-        <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "12px" }}>
+        <div style={{ fontSize: "0.85rem", color: "var(--text2)", marginBottom: "12px" }}>
           {mapMessage}
         </div>
         <div
@@ -944,6 +1089,30 @@ const MapComponent: FC = () => {
               <FaMap /> 見取り図参照
             </button>
           </div>
+          {isDevUser() && (
+            <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "4px" }}>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  window.open(`/gate-camera?parkingLotId=${selectedLot?.id}`, "_blank")
+                }
+                style={{ fontSize: "0.8rem", padding: "6px" }}
+              >
+                ゲートカメラを開く
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  window.open(`/overhead-camera?parkingLotId=${selectedLot?.id}`, "_blank")
+                }
+                style={{ fontSize: "0.8rem", padding: "6px" }}
+              >
+                俯瞰カメラを開く
+              </button>
+            </div>
+          )}
           <button
             type="button"
             id="reserve-trigger-btn"

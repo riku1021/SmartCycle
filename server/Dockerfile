@@ -34,7 +34,8 @@ COPY server/pyproject.toml server/uv.lock ./
 
 # ロックファイルどおりの依存のみ（プロジェクト本体は src コピーで運用するため未インストール）
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project --compile-bytecode
+    uv sync --frozen --no-dev --no-install-project --compile-bytecode && \
+    .venv/bin/python -c "import torch; assert not torch.cuda.is_available()"
 
 # =============================================================================
 # ステージ1.5: 開発用依存のビルド
@@ -48,12 +49,10 @@ ENV UV_LINK_MODE=copy
 COPY server/pyproject.toml server/uv.lock ./
 
 # 開発用ランタイムに必要な依存のみ（security グループの pip-audit 等はビルド失敗の原因になり得るため含めない）
+# opencv-python-headless は pyproject.toml + constraint-dependencies で uv sync が解決する
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --group dev && \
-    .venv/bin/python -c "import uvicorn"
-
-RUN .venv/bin/pip install opencv-python-headless && \
-    .venv/bin/pip uninstall opencv-python -y || true
+    .venv/bin/python -c "import uvicorn; import cv2; import torch; assert not torch.cuda.is_available()"
 # =============================================================================
 # ステージ2: 本番ランタイム
 # =============================================================================
@@ -108,4 +107,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
 
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD [".venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

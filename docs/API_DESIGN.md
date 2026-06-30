@@ -124,9 +124,9 @@
 | `/auth/me` | GET | `users` 参照 | 同左 | `users` | JWT の `sub` と `users.id` で取得。 |
 | `/auth/me` | PATCH | なし | `users` UPDATE（部分） | `users` | 許可フィールドのみ更新。 |
 | `/api/iot/parking-status` | POST | メモリのみ | **書き込み** | `parking_statuses`（UPSERT）、`parking_status_histories`（INSERT） | 機器認証成功後のみ DB 更新。`available_spots` と `is_full` を一貫させる。履歴は追記のみ。冪等は実装 Issue で決定。 |
-| `/api/parking-statuses` | GET | メモリ／既定値 | **読み取り** | `parking_statuses`（必要なら `parking_lots` と JOIN） | 参照のみ。 |
-| `/api/parking-statuses/{parking_lot_id}` | GET | メモリ／既定値 | **読み取り** | `parking_statuses` | **現行**: 未登録 ID でも **200** で既定の空き値を返す（[server/src/modules/iot/api.py](../server/src/modules/iot/api.py)）。**本設計**: `parking_lots` に存在しない ID は **404**、存在すれば `parking_statuses` を参照。 |
-| `/api/parking-lots` | GET | `parking_lots` と `parking_statuses` を参照 | **読み取り** | `parking_lots`、`parking_statuses` | 参照のみ。現行レスポンスは配列で、`available_spots` を含む。 |
+| `/api/parking-statuses` | GET | メモリ／既定値 | **読み取り** | `parking_statuses` | `parking_statuses` テーブルを参照し全件取得。 |
+| `/api/parking-statuses/{parking_lot_id}` | GET | メモリ／既定値 | **読み取り** | `parking_statuses` | `parking_lots` に存在しない UUID は **404**、存在すれば `parking_statuses` を参照。 |
+| `/api/parking-lots` | GET | `parking_lots` と `parking_statuses` を参照 | **読み取り** | `parking_lots`、`parking_statuses` | 参照のみ。レスポンスは配列で、`available_spots` を含む。 |
 | `/api/parking-lots/{parking_lot_id}` | GET | `parking_lots` と `parking_statuses` を参照 | **読み取り** | `parking_lots`、`parking_statuses` | 参照のみ。存在しない UUID は 404。 |
 | `/api/reservations` | POST | **書き込み** | **書き込み** | `reservations` INSERT、`parking_lots` 参照 | Bearer 必須。`end_time > start_time`。作成時 `status=reserved`、`total_amount` は時間切り上げで算出。 |
 | `/api/reservations/me` | GET | **読み取り** | **読み取り** | `reservations`、`parking_lots`（JOIN） | Bearer 必須。`user_id` はトークン由来のみ。現行レスポンスは配列。 |
@@ -162,9 +162,9 @@
 | ----------------------------- | -------------- | ---------------------------------------- | ---- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **[実装済み]** 駐輪場マスタ一覧（地図マーカー用）  | マップ、駐輪場一覧      | `/api/parking-lots`                      | GET  | なし                               | **200** 配列。各 item: `id` (uuid), `name`, `latitude`, `longitude`, `available_spots`, `total_spots`, `price_per_hour`, `created_at`, `updated_at`                         |
 | **[実装済み]** 駐輪場詳細              | マップ            | `/api/parking-lots/{parking_lot_id}`     | GET  | **Path** `parking_lot_id` (uuid, 必須)                                                        | **200** 上記 1 件オブジェクト **404**                                                                                                                                            |
-| **[実装済み]** 全駐輪場の最新空き（簡易）      | マップ（移行後）、駐輪場一覧 | `/api/parking-statuses`                  | GET  | なし（現行）                                                                                      | **200** `ParkingStatusResponse` の配列。**現行**: `parking_lot_id` は **integer**、`available_count`, `updated_at` (string)。DB 連携後は uuid・`available_spots` 等へ移行（「12. 既知の差分」参照）。 |
-| **[実装済み]** 駐輪場別最新空き           | マップ、駐輪場一覧      | `/api/parking-statuses/{parking_lot_id}` | GET  | **Path** `parking_lot_id`（現行 **int**、移行後 **uuid**）                                          | **200** 単一ステータスオブジェクト（同上）                                                                                                                                               |
-| **[実装済み]** IoT からの空き状況 Upsert | （デバイス・運用）      | `/api/iot/parking-status`                | POST | **Body** `parking_lot_id` (integer 必須, **現行** `> 0`) `available_count` (integer 必須, `>= 0`) | **200** `{ "parking_lot_id", "available_count", "updated_at" }`（`updated_at` はサーバー生成の ISO 文字列）                                                                          |
+| **[実装済み]** 全駐輪場の最新空き（簡易）      | マップ（移行後）、駐輪場一覧 | `/api/parking-statuses`                  | GET  | なし                                                                                      | **200** `ParkingStatusResponse` の配列。`parking_lot_id` (uuid), `available_spots`, `updated_at` (string) |
+| **[実装済み]** 駐輪場別最新空き           | マップ、駐輪場一覧      | `/api/parking-statuses/{parking_lot_id}` | GET  | **Path** `parking_lot_id` (uuid 必須)                                          | **200** 単一ステータスオブジェクト（同上）                                                                                                                                               |
+| **[実装済み]** IoT からの空き状況 Upsert | （デバイス・運用）      | `/api/iot/parking-status`                | POST | **Body** `parking_lot_id` (uuid 必須), `available_spots` (integer 必須, `>= 0`) | **200** `{ "parking_lot_id", "available_spots", "updated_at" }`（`updated_at` はサーバー生成の ISO 文字列）                                                                          |
 
 
 **通知**: マップ上の通知一覧は **現状クライアント固定データ**。サーバー連携時は `GET /api/notifications`（ページング、`items` に `title`, `body`, `read`, `created_at` 等）を別途定義してよい（本書ではマップ表から省略し、必要になったら追記）。

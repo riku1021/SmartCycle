@@ -19,17 +19,24 @@ export type LatestOverheadDetectionResponse = {
   size_bytes: number;
 };
 
-export async function sendOverheadCameraFrame(frameBlob: Blob): Promise<void> {
+export async function sendOverheadCameraFrame(
+  parkingLotId: string,
+  frameBlob: Blob
+): Promise<void> {
   await apiClient.post("/overhead-camera/images", frameBlob, {
+    params: { parking_lot_id: parkingLotId },
     headers: {
       "Content-Type": frameBlob.type || "image/jpeg",
     },
   });
 }
 
-export async function fetchLatestOverheadDetection(): Promise<LatestOverheadDetectionResponse> {
+export async function fetchLatestOverheadDetection(
+  parkingLotId: string
+): Promise<LatestOverheadDetectionResponse> {
   const { data } = await apiClient.get<LatestOverheadDetectionResponse>(
-    "/overhead-camera/detections/latest"
+    "/overhead-camera/detections/latest",
+    { params: { parking_lot_id: parkingLotId } }
   );
   return data;
 }

@@ -17,19 +17,24 @@ export type LatestDetectionResponse = {
   size_bytes: number;
 };
 
-export async function sendGateCameraFrame(frameBlob: Blob): Promise<void> {
+export async function sendGateCameraFrame(parkingLotId: string, frameBlob: Blob): Promise<void> {
   await apiClient.post("/gate-camera/images", frameBlob, {
+    params: { parking_lot_id: parkingLotId },
     headers: {
       "Content-Type": frameBlob.type || "image/jpeg",
     },
   });
 }
 
-export async function fetchLatestGateDetection(): Promise<LatestDetectionResponse> {
-  const { data } = await apiClient.get<LatestDetectionResponse>("/gate-camera/detections/latest");
+export async function fetchLatestGateDetection(
+  parkingLotId: string
+): Promise<LatestDetectionResponse> {
+  const { data } = await apiClient.get<LatestDetectionResponse>("/gate-camera/detections/latest", {
+    params: { parking_lot_id: parkingLotId },
+  });
   return data;
 }
 
-export async function sendTripEvent(direction: "in" | "out"): Promise<void> {
-  await apiClient.post("/gate-camera/trip", { direction });
+export async function sendTripEvent(parkingLotId: string, direction: "in" | "out"): Promise<void> {
+  await apiClient.post("/gate-camera/trip", { direction, parking_lot_id: parkingLotId });
 }
