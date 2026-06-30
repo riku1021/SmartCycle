@@ -43,13 +43,14 @@ html {
   background: #f1f5f9;
 }
 .full-map-screen {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   z-index: 1;
   pointer-events: none;
+  overflow: hidden;
 }
 .full-map-screen > * {
   pointer-events: auto;
@@ -59,13 +60,14 @@ html {
 }
 
 #app-layout {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   z-index: 10;
   pointer-events: none;
+  overflow: hidden;
 }
 #app-layout > * {
   pointer-events: auto;
@@ -289,7 +291,7 @@ html {
 
 /* --- Logged Panel (最適化) --- */
 .logged-panel {
-  height: 240px; /* 3つのボタンがしっかり収まる高さ */
+  height: 220px; /* 3つのボタンがしっかり収まる高さ */
   display: flex;
   padding: 12px;
   background: rgba(255, 255, 255, 0.98);
@@ -342,7 +344,7 @@ html {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  justify-content: space-between; /* ボタンを均等に配置 */
+  justify-content: space-between;
 }
 
 .right-panel-btn {
@@ -350,56 +352,66 @@ html {
   border-radius: 14px;
   border: none;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 6px 10px;
-  gap: 8px;
-  background: white;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   transition: all 0.2s;
-  min-height: 54px; /* 最小高さを確保して潰れを防止 */
+  text-align: center;
 }
 .right-panel-btn:active {
   transform: scale(0.96);
 }
 
 .btn-icon-box {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   flex-shrink: 0;
+  background: white;
+}
+
+/* Colored backgrounds for the buttons themselves */
+.destination-btn {
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: var(--primary);
 }
 .btn-icon-box.dest {
-  background: #eef2ff;
   color: #4f46e5;
 }
-.btn-icon-box.my {
-  background: #ecfdf5;
+
+.my-btn {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
   color: #059669;
 }
+.btn-icon-box.my {
+  color: #059669;
+}
+
+.history-btn {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  color: #d97706;
+}
 .btn-icon-box.history {
-  background: #fffbeb;
   color: #d97706;
 }
 
 .btn-text-content {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  align-items: center;
 }
 .btn-main-label {
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   font-weight: 800;
-  color: #1e293b;
+  color: inherit;
   line-height: 1.1;
-}
-.btn-sub-label {
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: #64748b;
   white-space: nowrap;
 }
 
@@ -413,41 +425,8 @@ html {
   gap: 5px;
 }
 
-.mini-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 8px 10px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
-}
-.mini-item-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 70px;
-  color: #334155;
-}
-.mini-item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 4px 0;
-  border-bottom: 1px solid #f1f5f9;
-}
-.mini-item-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 80px;
-}
-
 .logged-panel {
-  height: 260px;
+  height: 220px;
 }
 
 .bottom-left-panel {

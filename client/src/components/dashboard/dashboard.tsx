@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import type { FC } from "react";
 import { useState } from "react";
-import { FaArrowRightFromBracket } from "react-icons/fa6";
+import { FaBars } from "react-icons/fa6";
 import { fetchDashboardSummary } from "@/api/parking-status";
+import MapSideDrawer from "@/components/map/MapSideDrawer";
 import { isOperatorUser } from "@/lib/adminRole";
-import { clearAccessToken } from "@/lib/apiClient";
-import { showConfirmationAlert } from "@/shared/alerts/alerts";
 
 /* ── SVG 棒グラフ ── */
 const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number }[] }> = ({
@@ -158,28 +157,20 @@ const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[]
 
 const DashboardComponent: FC = () => {
   const navigate = useNavigate();
-  const [activeScreen, setActiveScreen] = useState("dashboard");
+  const location = useLocation();
+  const searchStr = location.searchStr;
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const isOperator = isOperatorUser();
+
+  let activeScreen = "dashboard";
+  if (searchStr.includes("tab=management")) activeScreen = "management";
+  if (searchStr.includes("tab=reports")) activeScreen = "reports";
 
   const { data, isLoading } = useQuery({
     queryKey: ["dashboardSummary"],
     queryFn: fetchDashboardSummary,
     refetchInterval: 5000,
   });
-
-  const handleLogout = async () => {
-    const result = await showConfirmationAlert(
-      "ログアウト確認",
-      "ログアウトしますか？",
-      "ログアウト",
-      "キャンセル"
-    );
-    if (!result.isConfirmed) {
-      return;
-    }
-    clearAccessToken();
-    await navigate({ to: "/login" });
-  };
 
   const summary = data || {
     total_occupancy_rate: 0,
@@ -204,60 +195,23 @@ const DashboardComponent: FC = () => {
   const formattedRevenue = new Intl.NumberFormat("ja-JP").format(estimatedRevenue);
 
   return (
-    <div className="dashboard">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <h2>SmartCycle Admin</h2>
-          <button
-            type="button"
-            className="mobile-logout-btn"
-            onClick={handleLogout}
-            aria-label="ログアウト"
-          >
-            <FaArrowRightFromBracket />
-          </button>
-        </div>
-        <nav id="admin-nav">
-          <button
-            type="button"
-            className={`nav-item ${activeScreen === "dashboard" ? "active" : ""}`}
-            onClick={() => setActiveScreen("dashboard")}
-          >
-            ダッシュボード
-          </button>
-          <button
-            type="button"
-            className={`nav-item ${activeScreen === "management" ? "active" : ""}`}
-            onClick={() => setActiveScreen("management")}
-          >
-            駐輪場管理
-          </button>
-          <button
-            type="button"
-            className={`nav-item ${activeScreen === "reports" ? "active" : ""}`}
-            onClick={() => setActiveScreen("reports")}
-          >
-            統計レポート
-          </button>
-          <button type="button" className="nav-item" onClick={() => void navigate({ to: "/map" })}>
-            ユーザーマップ
-          </button>
-          <button
-            type="button"
-            className="nav-item"
-            onClick={handleLogout}
-            style={{ marginTop: "auto", color: "#ef4444" }}
-          >
-            ログアウト
-          </button>
-        </nav>
-      </aside>
+    <div className="dashboard" style={{ display: "block" }}>
+      <MapSideDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
 
-      <main className="content">
+      <main className="content" style={{ width: "100%" }}>
         {activeScreen === "dashboard" && (
           <div id="screen-dashboard" className="admin-screen">
-            <header>
-              <h1>ダッシュボード</h1>
+            <header style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <button
+                type="button"
+                className="top-action-btn"
+                onClick={() => setIsDrawerOpen(true)}
+                aria-label="メニューを開く"
+                style={{ width: "42px", height: "42px", flexShrink: 0, position: "static" }}
+              >
+                <FaBars />
+              </button>
+              <h1 style={{ margin: 0 }}>ダッシュボード</h1>
               <div className="user-info">システム管理者</div>
             </header>
 
@@ -325,8 +279,17 @@ const DashboardComponent: FC = () => {
 
         {activeScreen === "management" && (
           <div id="screen-management" className="admin-screen">
-            <header>
-              <h1>駐輪場管理</h1>
+            <header style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <button
+                type="button"
+                className="top-action-btn"
+                onClick={() => setIsDrawerOpen(true)}
+                aria-label="メニューを開く"
+                style={{ width: "42px", height: "42px", flexShrink: 0, position: "static" }}
+              >
+                <FaBars />
+              </button>
+              <h1 style={{ margin: 0, flex: 1 }}>駐輪場管理</h1>
               <button
                 type="button"
                 className="primary-btn"
@@ -379,8 +342,17 @@ const DashboardComponent: FC = () => {
 
         {activeScreen === "reports" && (
           <div id="screen-reports" className="admin-screen">
-            <header>
-              <h1>統計レポート</h1>
+            <header style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <button
+                type="button"
+                className="top-action-btn"
+                onClick={() => setIsDrawerOpen(true)}
+                aria-label="メニューを開く"
+                style={{ width: "42px", height: "42px", flexShrink: 0, position: "static" }}
+              >
+                <FaBars />
+              </button>
+              <h1 style={{ margin: 0, flex: 1 }}>統計レポート</h1>
             </header>
             <div className="report-grid">
               <div className="card">

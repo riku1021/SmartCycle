@@ -6,6 +6,7 @@
 
 冪等性:
 - 既に同じメールアドレスのユーザーが存在する場合はスキップする。
+- 既存ユーザーの表示名・パスワードは変更しない。
 - 失敗時は呼び出し側にロールバックを委ねる。
 """
 
@@ -30,7 +31,7 @@ class _SeedUser:
 
 
 # クライアント側 (client/src/lib/adminRole.ts) と同じ値を使用する。
-# パスワードを変更する場合はクライアント側および docs/test-accounts.md も同時に更新する。
+# パスワードを変更する場合はクライアント側および docs/ACCOUNTS.md も同時に更新する。
 _SEED_USERS: tuple[_SeedUser, ...] = (
     _SeedUser(email="admin@mail.com", password="admin1234", name="管理者ユーザー", role="admin"),
     _SeedUser(email="dev@mail.com", password="dev1234", name="開発者ユーザー", role="dev"),
@@ -48,6 +49,7 @@ async def seed_dev_users(session_maker: async_sessionmaker[AsyncSession]) -> Non
     """テスト用アカウントを冪等に投入する。
 
     - 既存の同 email レコードがあればスキップ
+    - operator 既存レコードだけ、role が古い場合は operator に補正
     - 1 件でも追加した場合は commit
     - ハッシュ計算は pwdlib (argon2) を使用
     """
@@ -59,13 +61,9 @@ async def seed_dev_users(session_maker: async_sessionmaker[AsyncSession]) -> Non
                 existing = await session.execute(select(User).where(User.email == seed.email))
                 user = existing.scalar_one_or_none()
                 if user is not None:
-                    if user.name != seed.name:
-                        user.name = seed.name
-                        updated.append(seed.email)
                     if user.email == "operator@mail.com" and user.role != seed.role:
                         user.role = seed.role
-                        if seed.email not in updated:
-                            updated.append(seed.email)
+                        updated.append(seed.email)
                     continue
                 session.add(
                     User(

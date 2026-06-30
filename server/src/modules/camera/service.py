@@ -20,6 +20,7 @@ _MODEL_PATH = "yolov8n.pt"  # TODO:
 def _load_model() -> Any:
     """モデルを遅延ロード（初回推論時のみ）。"""
     from ultralytics import YOLO  # noqa: PLC0415
+
     return YOLO(_MODEL_PATH)
 
 
@@ -53,7 +54,7 @@ def detect_bicycles(image_bytes: bytes) -> list[dict]:
 
     try:
         model = get_model()
-        results = model(image, verbose=False, iou=0.3)
+        results = model(image, verbose=False, iou=0.3, device="cpu")
     except Exception as exc:
         raise RuntimeError(f"推論エラー: {exc}") from exc
 
@@ -67,13 +68,15 @@ def detect_bicycles(image_bytes: bytes) -> list[dict]:
             if cls_id != _BICYCLE_CLASS_ID or score < _CONFIDENCE_THRESHOLD:
                 continue
             x1, y1, x2, y2 = box.xyxy[0].tolist()
-            boxes_out.append({
-                "x": x1,
-                "y": y1,
-                "width": x2 - x1,
-                "height": y2 - y1,
-                "label": "bicycle",
-                "score": score,
-            })
+            boxes_out.append(
+                {
+                    "x": x1,
+                    "y": y1,
+                    "width": x2 - x1,
+                    "height": y2 - y1,
+                    "label": "bicycle",
+                    "score": score,
+                }
+            )
 
     return boxes_out
