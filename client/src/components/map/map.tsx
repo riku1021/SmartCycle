@@ -10,7 +10,6 @@ import {
   FaChevronLeft,
   FaCircleCheck,
   FaLocationArrow,
-  FaLocationCrosshairs,
   FaLocationDot,
   FaMagnifyingGlass,
   FaMap,
@@ -19,9 +18,9 @@ import {
 } from "react-icons/fa6";
 import { fetchParkingLots } from "@/api/parking-lots";
 import { createReservation } from "@/api/reservations";
+import { GOOGLE_MAPS_API_KEY } from "@/config/env";
 import { isDevUser } from "@/lib/adminRole";
 import { EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
-import { GOOGLE_MAPS_API_KEY } from "@/config/env";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
 import MapSideDrawer from "./MapSideDrawer";
 
@@ -239,21 +238,20 @@ const MapComponent: FC = () => {
     MAP_CENTER.lng,
   ]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
-  const [isTracking, setIsTracking] = useState(false);
   const [isRouting, setIsRouting] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [mapMessage, setMapMessage] = useState("駐輪場を選択してください");
   const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
+  const hasCenteredOnUserRef = useRef(false);
+  const latestUserPositionRef = useRef<[number, number] | null>(null);
 
-  const stopTracking = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    setIsTracking(false);
+  const centerMapOnUser = useCallback((ll: [number, number]) => {
+    if (hasCenteredOnUserRef.current || !mapRef.current) return;
+    mapRef.current.panTo({ lat: ll[0], lng: ll[1] });
+    mapRef.current.setZoom(16);
+    hasCenteredOnUserRef.current = true;
   }, []);
 
   const [showSearch, setShowSearch] = useState(false);
@@ -290,9 +288,15 @@ const MapComponent: FC = () => {
     []
   );
 
-  const handleMapReady = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-  }, []);
+  const handleMapReady = useCallback(
+    (map: google.maps.Map) => {
+      mapRef.current = map;
+      if (latestUserPositionRef.current) {
+        centerMapOnUser(latestUserPositionRef.current);
+      }
+    },
+    [centerMapOnUser]
+  );
 
   const handleSelectLot = useCallback(
     (id: string) => {
@@ -386,52 +390,43 @@ const MapComponent: FC = () => {
     };
   }, []);
 
-  const handleLocateUser = () => {
+  useEffect(() => {
     if (!navigator.geolocation) {
       setMapMessage("このブラウザは位置情報に対応していません");
       return;
     }
 
-    if (isTracking) {
-      stopTracking();
-      setMapMessage("追跡を停止しました");
-      return;
-    }
+    const geoOptions: PositionOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    };
 
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const ll: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-        setCurrentLatLng(ll);
-        mapRef.current?.panTo({ lat: ll[0], lng: ll[1] });
-        mapRef.current?.setZoom(16);
-        setMapMessage("位置を特定しました。追跡を開始します。");
-        setIsLocating(false);
-        setIsTracking(true);
+    const handlePosition = (pos: GeolocationPosition) => {
+      const ll: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+      latestUserPositionRef.current = ll;
+      setCurrentLatLng(ll);
+      centerMapOnUser(ll);
+    };
 
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (p) => {
-            const newLL: [number, number] = [p.coords.latitude, p.coords.longitude];
-            setCurrentLatLng(newLL);
-          },
-          () => {
-            setMapMessage("追跡中にエラーが発生しました");
-            stopTracking();
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      },
-      () => {
-        setMapMessage("位置情報を取得できませんでした");
-        setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
+    const handleError = () => {
+      setMapMessage("位置情報を取得できませんでした");
+    };
+
+    navigator.geolocation.getCurrentPosition(handlePosition, handleError, geoOptions);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      handlePosition,
+      handleError,
+      geoOptions
     );
-  };
 
-  useEffect(() => {
-    return () => stopTracking();
-  }, [stopTracking]);
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [centerMapOnUser]);
 
   const handleRoute = async () => {
     if (!selectedLot || !panelOpen) return;
@@ -571,16 +566,6 @@ const MapComponent: FC = () => {
           </div>
         </div>
         <div className="app-top-actions">
-          <button
-            type="button"
-            className={`top-action-btn locate-btn ${isTracking ? "active-tracking" : ""}`}
-            onClick={handleLocateUser}
-            disabled={isLocating}
-            title={isTracking ? "追跡を停止" : "現在地を追跡"}
-          >
-            {isLocating ? <div className="spinner-mini" /> : <FaLocationCrosshairs />}
-          </button>
-
           <button
             type="button"
             className="top-action-btn notif-bell-btn"
