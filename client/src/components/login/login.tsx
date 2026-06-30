@@ -19,7 +19,9 @@ import {
 } from "./login.auth";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-import { GOOGLE_MAPS_API_KEY } from "@/config/env";
+
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID } from "@/config/env";
+
 const MAP_CENTER = { lat: 34.702485, lng: 135.495951 };
 
 const GUEST_LOTS = [
@@ -104,7 +106,7 @@ const LoginComponent: FC = () => {
             defaultZoom={15}
             gestureHandling="greedy"
             disableDefaultUI
-            mapId="DEMO_MAP_ID"
+            mapId={GOOGLE_MAPS_MAP_ID}
           >
             {GUEST_LOTS.map((lot) => (
               <AdvancedMarker key={lot.id} position={{ lat: lot.lat, lng: lot.lng }}>

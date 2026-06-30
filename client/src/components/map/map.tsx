@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { AdvancedMarker, APIProvider, Map as GoogleMap, useMap } from "@vis.gl/react-google-maps";
 import type { FC } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FaBars,
   FaBell,
@@ -18,11 +18,27 @@ import {
 } from "react-icons/fa6";
 import { fetchParkingLots } from "@/api/parking-lots";
 import { createReservation } from "@/api/reservations";
-import { GOOGLE_MAPS_API_KEY } from "@/config/env";
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID } from "@/config/env";
 import { isDevUser } from "@/lib/adminRole";
 import { EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
+import { CurrentLocationMarker } from "./CurrentLocationMarker";
+import { useDirectionsRoute } from "./hooks/useDirectionsRoute";
+import { useInAppNavigation } from "./hooks/useInAppNavigation";
+import { useNavMapFollow } from "./hooks/useNavMapFollow";
 import MapSideDrawer from "./MapSideDrawer";
+import { NavigationPanel } from "./NavigationPanel";
+import { NavRecenterButton } from "./NavRecenterButton";
+import { RouteMapLayer } from "./RouteMapLayer";
+import { RouteOriginDestinationBar } from "./RouteOriginDestinationBar";
+import { RoutePreviewPanel } from "./RoutePreviewPanel";
+import {
+  computeBearing,
+  haversineMeters,
+  isValidGeoHeading,
+  type RouteCandidate,
+  type RouteViewMode,
+} from "./types/route";
 
 const MAP_CENTER = { lat: 34.702485, lng: 135.495951 };
 
@@ -38,7 +54,6 @@ type ParkingLot = {
   isEv3Linked?: boolean;
 };
 
-type LatLng = { lat: number; lng: number };
 type LotStatusClass = "free" | "few" | "full";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -124,70 +139,37 @@ const NOTIFICATIONS = [
 type MapInnerProps = {
   lots: ParkingLot[];
   currentLatLng: [number, number];
-  routePath: LatLng[] | null;
+  heading: number | null;
   onSelectLot: (id: string) => void;
   onMapReady: (map: google.maps.Map) => void;
+  showRouteLayer: boolean;
+  autoFitRouteBounds: boolean;
+  routeCandidates: RouteCandidate[];
+  selectedRouteIndex: number;
+  onSelectRoute: (index: number) => void;
 };
 
 const MapInner: FC<MapInnerProps> = ({
   lots,
   currentLatLng,
-  routePath,
+  heading,
   onSelectLot,
   onMapReady,
+  showRouteLayer,
+  autoFitRouteBounds,
+  routeCandidates,
+  selectedRouteIndex,
+  onSelectRoute,
 }) => {
   const map = useMap();
-  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
 
   useEffect(() => {
     if (map) onMapReady(map);
   }, [map, onMapReady]);
 
-  useEffect(() => {
-    if (!map) return;
-
-    if (routePolylineRef.current) {
-      routePolylineRef.current.setMap(null);
-      routePolylineRef.current = null;
-    }
-
-    if (routePath && routePath.length > 0) {
-      routePolylineRef.current = new google.maps.Polyline({
-        path: routePath,
-        geodesic: true,
-        strokeColor: "#4F46E5",
-        strokeOpacity: 0.9,
-        strokeWeight: 5,
-      });
-      routePolylineRef.current.setMap(map);
-
-      const bounds = new google.maps.LatLngBounds();
-      for (const p of routePath) bounds.extend(p);
-      map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
-    }
-
-    return () => {
-      if (routePolylineRef.current) {
-        routePolylineRef.current.setMap(null);
-        routePolylineRef.current = null;
-      }
-    };
-  }, [map, routePath]);
-
   return (
     <>
-      <AdvancedMarker position={{ lat: currentLatLng[0], lng: currentLatLng[1] }} title="現在地">
-        <div
-          style={{
-            width: 16,
-            height: 16,
-            borderRadius: "50%",
-            background: "#4F46E5",
-            border: "3px solid #fff",
-            boxShadow: "0 2px 6px rgba(79,70,229,0.5)",
-          }}
-        />
-      </AdvancedMarker>
+      <CurrentLocationMarker position={currentLatLng} heading={heading} />
 
       {lots.map((lot) => {
         const status = lotStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
@@ -224,6 +206,16 @@ const MapInner: FC<MapInnerProps> = ({
           </AdvancedMarker>
         );
       })}
+
+      {showRouteLayer && routeCandidates.length > 0 && (
+        <RouteMapLayer
+          candidates={routeCandidates}
+          selectedRouteIndex={selectedRouteIndex}
+          showTimeBubbles={routeCandidates.length > 1}
+          onSelectRoute={onSelectRoute}
+          autoFitBounds={autoFitRouteBounds}
+        />
+      )}
     </>
   );
 };
@@ -238,10 +230,75 @@ const MapComponent: FC = () => {
     MAP_CENTER.lng,
   ]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
-  const [isRouting, setIsRouting] = useState(false);
+  const [routeViewMode, setRouteViewMode] = useState<RouteViewMode>("idle");
   const [panelOpen, setPanelOpen] = useState(false);
   const [mapMessage, setMapMessage] = useState("駐輪場を選択してください");
-  const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
+  const prevGeoPositionRef = useRef<[number, number] | null>(null);
+  const [currentHeading, setCurrentHeading] = useState<number | null>(null);
+
+  const {
+    isLoading: isRouteLoading,
+    error: routeError,
+    activeTravelMode,
+    selectedRouteIndex,
+    modeDurations,
+    activeCandidates,
+    selectedCandidate,
+    setSelectedRouteIndex,
+    fetchAllModes,
+    switchTravelMode,
+    resetRoutes,
+  } = useDirectionsRoute();
+
+  const isNavigating = routeViewMode === "navigating";
+  const navigation = useInAppNavigation({
+    route: selectedCandidate?.route ?? null,
+    currentLatLng,
+    isNavigating,
+  });
+
+  const navigationHeading = useMemo(() => {
+    if (currentHeading !== null) return currentHeading;
+    const step = navigation.currentStep;
+    if (!step?.end_location) return null;
+    return computeBearing(
+      { lat: currentLatLng[0], lng: currentLatLng[1] },
+      { lat: step.end_location.lat(), lng: step.end_location.lng() }
+    );
+  }, [currentHeading, currentLatLng, navigation.currentStep]);
+
+  const displayHeading = useMemo(() => {
+    if (currentHeading !== null) return currentHeading;
+    if (routeViewMode === "navigating") return navigationHeading;
+    if (routeViewMode === "preview" && selectedCandidate) {
+      const path = selectedCandidate.path;
+      if (path.length >= 2) {
+        const from = { lat: currentLatLng[0], lng: currentLatLng[1] };
+        let nearestIdx = 0;
+        let nearestDist = Number.POSITIVE_INFINITY;
+        for (let i = 0; i < path.length; i++) {
+          const d = haversineMeters(from, path[i]);
+          if (d < nearestDist) {
+            nearestDist = d;
+            nearestIdx = i;
+          }
+        }
+        const nextIdx = Math.min(nearestIdx + 1, path.length - 1);
+        if (nextIdx !== nearestIdx) {
+          return computeBearing(from, path[nextIdx]);
+        }
+        return computeBearing(path[nearestIdx], path[nextIdx]);
+      }
+    }
+    return null;
+  }, [currentHeading, navigationHeading, routeViewMode, selectedCandidate, currentLatLng]);
+
+  const navMapFollow = useNavMapFollow({
+    mapRef,
+    currentLatLng,
+    routeViewMode,
+    heading: displayHeading,
+  });
 
   const watchIdRef = useRef<number | null>(null);
   const hasCenteredOnUserRef = useRef(false);
@@ -405,6 +462,20 @@ const MapComponent: FC = () => {
     const handlePosition = (pos: GeolocationPosition) => {
       const ll: [number, number] = [pos.coords.latitude, pos.coords.longitude];
       latestUserPositionRef.current = ll;
+
+      if (isValidGeoHeading(pos.coords.heading)) {
+        setCurrentHeading(pos.coords.heading);
+      } else if (prevGeoPositionRef.current) {
+        const prev = prevGeoPositionRef.current;
+        const moved = haversineMeters({ lat: prev[0], lng: prev[1] }, { lat: ll[0], lng: ll[1] });
+        if (moved > 5) {
+          setCurrentHeading(
+            computeBearing({ lat: prev[0], lng: prev[1] }, { lat: ll[0], lng: ll[1] })
+          );
+        }
+      }
+      prevGeoPositionRef.current = ll;
+
       setCurrentLatLng(ll);
       centerMapOnUser(ll);
     };
@@ -431,38 +502,59 @@ const MapComponent: FC = () => {
   const handleRoute = async () => {
     if (!selectedLot || !panelOpen) return;
 
-    setIsRouting(true);
-    setMapMessage("ルートを計算しています...");
-    setRoutePath(null);
+    const origin = { lat: currentLatLng[0], lng: currentLatLng[1] };
+    const destination = { lat: selectedLot.latitude, lng: selectedLot.longitude };
+    const ok = await fetchAllModes(origin, destination);
+    if (!ok) return;
 
-    try {
-      const directionsService = new google.maps.DirectionsService();
-      const result = await directionsService.route({
-        origin: { lat: currentLatLng[0], lng: currentLatLng[1] },
-        destination: { lat: selectedLot.latitude, lng: selectedLot.longitude },
-        travelMode: google.maps.TravelMode.BICYCLING,
-      });
-
-      const route = result.routes[0];
-      if (!route || !route.legs[0]) throw new Error("no route");
-
-      const path = route.overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
-      setRoutePath(path);
-
-      const durationSec = route.legs[0].duration?.value ?? 0;
-      setMapMessage(`自転車で約 ${Math.ceil(durationSec / 60)} 分のルートです。`);
-    } catch {
-      setMapMessage("ルートの取得に失敗しました。");
-    } finally {
-      setIsRouting(false);
-    }
+    setPanelOpen(false);
+    setRouteViewMode("preview");
   };
+
+  const { resetNavigation } = navigation;
+
+  const handleCloseRoute = useCallback(() => {
+    resetRoutes();
+    setRouteViewMode("idle");
+    resetNavigation();
+  }, [resetNavigation, resetRoutes]);
+
+  const handleBackToDetail = useCallback(() => {
+    resetRoutes();
+    setRouteViewMode("idle");
+    resetNavigation();
+    setPanelOpen(true);
+  }, [resetNavigation, resetRoutes]);
+
+  const handleStartNavigation = useCallback(() => {
+    if (!selectedCandidate) return;
+    setRouteViewMode("navigating");
+    resetNavigation();
+    navMapFollow.startFollowing();
+  }, [navMapFollow, resetNavigation, selectedCandidate]);
+
+  const handleEndNavigation = useCallback(() => {
+    resetNavigation();
+    setRouteViewMode("preview");
+  }, [resetNavigation]);
+
+  const handleSelectTravelMode = useCallback(
+    (mode: typeof activeTravelMode) => {
+      if (!selectedLot) return;
+      void switchTravelMode(
+        mode,
+        { lat: currentLatLng[0], lng: currentLatLng[1] },
+        { lat: selectedLot.latitude, lng: selectedLot.longitude }
+      );
+    },
+    [currentLatLng, selectedLot, switchTravelMode]
+  );
 
   const handleClosePanel = () => {
     setPanelOpen(false);
     setSelectedLotId(null);
     setReserveSuccess(false);
-    setRoutePath(null);
+    handleCloseRoute();
   };
 
   const handleReserve = async () => {
@@ -525,6 +617,9 @@ const MapComponent: FC = () => {
   const statusLabel =
     statusClass === "full" ? "満車" : statusClass === "few" ? "残りわずか" : "空きあり";
 
+  const showRouteLayer = routeViewMode === "preview" || routeViewMode === "navigating";
+  const showBottomPanel = routeViewMode === "idle";
+
   return (
     <div id="app-layout" className="full-map-screen">
       <div id="map">
@@ -535,18 +630,27 @@ const MapComponent: FC = () => {
             defaultZoom={15}
             gestureHandling="greedy"
             disableDefaultUI
-            mapId="DEMO_MAP_ID"
+            mapId={GOOGLE_MAPS_MAP_ID}
           >
             <MapInner
               lots={lots}
               currentLatLng={currentLatLng}
-              routePath={routePath}
+              heading={displayHeading}
               onSelectLot={handleSelectLot}
               onMapReady={handleMapReady}
+              showRouteLayer={showRouteLayer}
+              autoFitRouteBounds={routeViewMode === "preview"}
+              routeCandidates={activeCandidates}
+              selectedRouteIndex={selectedRouteIndex}
+              onSelectRoute={setSelectedRouteIndex}
             />
           </GoogleMap>
         </APIProvider>
       </div>
+
+      {routeViewMode === "preview" && selectedLot && (
+        <RouteOriginDestinationBar destinationName={selectedLot.name} onClose={handleCloseRoute} />
+      )}
 
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
@@ -862,133 +966,177 @@ const MapComponent: FC = () => {
       )}
 
       {/* ===== ボトムパネル（ログイン後） ===== */}
-      <div
-        className={`bottom-panel logged-panel ${panelOpen ? "collapsed" : ""}`}
-        id="main-bottom-panel"
-      >
-        <button
-          type="button"
-          className="panel-toggle-handle"
-          onClick={() => setPanelOpen(!panelOpen)}
-          aria-label="パネルを開閉する"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            display: "block",
-            width: "100%",
-          }}
-        />
+      {showBottomPanel && (
+        <div
+          className={`bottom-panel logged-panel ${panelOpen ? "collapsed" : ""}`}
+          id="main-bottom-panel"
+        >
+          <button
+            type="button"
+            className="panel-toggle-handle"
+            onClick={() => setPanelOpen(!panelOpen)}
+            aria-label="パネルを開閉する"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              display: "block",
+              width: "100%",
+            }}
+          />
 
-        <div className="bottom-left-panel">
-          <div className="bottom-panel-label">
-            <FaLocationDot style={{ display: "inline-block" }} /> 周辺の駐輪場
-          </div>
-          <div className="nearby-mini-list" id="nearby-mini-list">
-            {lots.map((lot) => {
-              const sClass = getStatusClass(lot.available_spots, lot.total_spots, lot.isEv3Linked);
-              const isFavorite = favoriteLotIds.includes(lot.id);
-              return (
-                <button
-                  type="button"
-                  key={lot.id}
-                  className="mini-item"
-                  style={{
-                    width: "100%",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                  onClick={() => {
-                    setSelectedLotId(lot.id);
-                    setPanelOpen(true);
-                    mapRef.current?.panTo({ lat: lot.latitude, lng: lot.longitude });
-                  }}
-                >
-                  <div
+          <div className="bottom-left-panel">
+            <div className="bottom-panel-label">
+              <FaLocationDot style={{ display: "inline-block" }} /> 周辺の駐輪場
+            </div>
+            <div className="nearby-mini-list" id="nearby-mini-list">
+              {lots.map((lot) => {
+                const sClass = getStatusClass(
+                  lot.available_spots,
+                  lot.total_spots,
+                  lot.isEv3Linked
+                );
+                const isFavorite = favoriteLotIds.includes(lot.id);
+                return (
+                  <button
+                    type="button"
+                    key={lot.id}
+                    className="mini-item"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      flex: 1,
-                      minWidth: 0,
+                      width: "100%",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    onClick={() => {
+                      setSelectedLotId(lot.id);
+                      setPanelOpen(true);
+                      mapRef.current?.panTo({ lat: lot.latitude, lng: lot.longitude });
                     }}
                   >
-                    {isFavorite && <FaStar style={{ color: "#f59e0b", flexShrink: 0 }} />}
-                    <span
-                      className="mini-item-name"
+                    <div
                       style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
                         flex: 1,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        minWidth: 0,
                       }}
                     >
-                      {lot.name}
-                    </span>
-                  </div>
-                  <span className={`badge ${sClass}`}>{lot.available_spots}台</span>
-                </button>
-              );
-            })}
+                      {isFavorite && <FaStar style={{ color: "#f59e0b", flexShrink: 0 }} />}
+                      <span
+                        className="mini-item-name"
+                        style={{
+                          flex: 1,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {lot.name}
+                      </span>
+                    </div>
+                    <span className={`badge ${sClass}`}>{lot.available_spots}台</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bottom-right-panel">
+            <button
+              type="button"
+              className="right-panel-btn destination-btn"
+              onClick={() => {
+                setShowSearch(true);
+                setPanelOpen(false);
+                setShowNotif(false);
+                setShowFavorites(false);
+              }}
+            >
+              <div className="btn-icon-box dest">
+                <FaMagnifyingGlass />
+              </div>
+              <div className="btn-text-content">
+                <span className="btn-main-label">目的地</span>
+              </div>
+            </button>
+            {/* お気に入り */}
+            <button
+              type="button"
+              className="right-panel-btn my-btn"
+              onClick={() => {
+                setShowFavorites(true);
+                setPanelOpen(false);
+                setShowSearch(false);
+                setShowNotif(false);
+              }}
+            >
+              <div className="btn-icon-box my">
+                <FaStar />
+              </div>
+              <div className="btn-text-content">
+                <span className="btn-main-label">MY駐輪</span>
+              </div>
+            </button>
+            {/* 予約 */}
+            <button
+              type="button"
+              className="right-panel-btn history-btn"
+              onClick={() => void navigate({ to: "/reservations" })}
+            >
+              <div className="btn-icon-box history">
+                <FaCalendarCheck />
+              </div>
+              <div className="btn-text-content">
+                <span className="btn-main-label">予約</span>
+              </div>
+            </button>
           </div>
         </div>
+      )}
 
-        <div className="bottom-right-panel">
-          <button
-            type="button"
-            className="right-panel-btn destination-btn"
-            onClick={() => {
-              setShowSearch(true);
-              setPanelOpen(false);
-              setShowNotif(false);
-              setShowFavorites(false);
-            }}
-          >
-            <div className="btn-icon-box dest">
-              <FaMagnifyingGlass />
-            </div>
-            <div className="btn-text-content">
-              <span className="btn-main-label">目的地</span>
-            </div>
-          </button>
-          {/* お気に入り */}
-          <button
-            type="button"
-            className="right-panel-btn my-btn"
-            onClick={() => {
-              setShowFavorites(true);
-              setPanelOpen(false);
-              setShowSearch(false);
-              setShowNotif(false);
-            }}
-          >
-            <div className="btn-icon-box my">
-              <FaStar />
-            </div>
-            <div className="btn-text-content">
-              <span className="btn-main-label">MY駐輪</span>
-            </div>
-          </button>
-          {/* 予約 */}
-          <button
-            type="button"
-            className="right-panel-btn history-btn"
-            onClick={() => void navigate({ to: "/reservations" })}
-          >
-            <div className="btn-icon-box history">
-              <FaCalendarCheck />
-            </div>
-            <div className="btn-text-content">
-              <span className="btn-main-label">予約</span>
-            </div>
-          </button>
-        </div>
-      </div>
+      {/* ===== ルートプレビューパネル ===== */}
+      {routeViewMode === "preview" && selectedLot && (
+        <RoutePreviewPanel
+          isLoading={isRouteLoading}
+          error={routeError}
+          activeTravelMode={activeTravelMode}
+          modeDurations={modeDurations}
+          activeCandidates={activeCandidates}
+          selectedRouteIndex={selectedRouteIndex}
+          destinationName={selectedLot.name}
+          onSelectTravelMode={handleSelectTravelMode}
+          onSelectRoute={setSelectedRouteIndex}
+          onStart={handleStartNavigation}
+          onBackToDetail={handleBackToDetail}
+          onClose={handleCloseRoute}
+        />
+      )}
+
+      {/* ===== ナビゲーションパネル ===== */}
+      {routeViewMode === "navigating" && (
+        <>
+          <NavRecenterButton
+            visible={navMapFollow.showRecenterButton}
+            onClick={navMapFollow.recenterOnUser}
+          />
+          <NavigationPanel
+            instruction={navigation.nextInstruction}
+            remainingDistanceMeters={navigation.remainingDistance}
+            remainingDurationSec={navigation.remainingDurationSec}
+            isComplete={navigation.isComplete}
+            onEnd={handleEndNavigation}
+          />
+        </>
+      )}
 
       {/* ===== 駐輪場詳細パネル ===== */}
-      <div id="detail-panel" className={`lot-detail-panel ${panelOpen ? "" : "hidden"}`}>
+      <div
+        id="detail-panel"
+        className={`lot-detail-panel ${panelOpen && routeViewMode === "idle" ? "" : "hidden"}`}
+      >
         <div className="panel-drag-handle" />
         <button type="button" className="panel-close-btn" onClick={handleClosePanel}>
           <FaXmark />
@@ -1066,7 +1214,7 @@ const MapComponent: FC = () => {
               id="nav-btn"
               className="secondary-btn"
               onClick={handleRoute}
-              disabled={isRouting}
+              disabled={isRouteLoading}
             >
               <FaLocationArrow /> ルート
             </button>
