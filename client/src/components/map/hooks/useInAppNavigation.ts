@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { haversineMeters, stripHtml } from "../types/route";
+import { extractStepDetail, haversineMeters, maneuverToLabel, stripHtml } from "../types/route";
 
 const STEP_THRESHOLD_METERS = 25;
 
@@ -42,13 +42,34 @@ export const useInAppNavigation = ({
 
   const currentStep = steps[stepIndex] ?? null;
   const nextInstruction = currentStep ? stripHtml(currentStep.instructions) : "";
+
+  const distanceToManeuver = useMemo(() => {
+    if (!currentStep?.end_location) return 0;
+    return haversineMeters(
+      { lat: currentLatLng[0], lng: currentLatLng[1] },
+      { lat: currentStep.end_location.lat(), lng: currentStep.end_location.lng() }
+    );
+  }, [currentLatLng, currentStep]);
+
+  const maneuverLabel = useMemo(
+    () => maneuverToLabel(currentStep?.maneuver) ?? null,
+    [currentStep]
+  );
+
+  const stepDetail = useMemo(
+    () => extractStepDetail(nextInstruction, maneuverLabel),
+    [nextInstruction, maneuverLabel]
+  );
+
+  const maneuverAction = maneuverLabel ?? nextInstruction;
+
   const remainingDistance = useMemo(() => {
-    let meters = 0;
-    for (let i = stepIndex; i < steps.length; i++) {
+    let meters = distanceToManeuver;
+    for (let i = stepIndex + 1; i < steps.length; i++) {
       meters += steps[i]?.distance?.value ?? 0;
     }
     return meters;
-  }, [stepIndex, steps]);
+  }, [distanceToManeuver, stepIndex, steps]);
 
   const remainingDurationSec = useMemo(() => {
     let sec = 0;
@@ -69,6 +90,9 @@ export const useInAppNavigation = ({
     steps,
     currentStep,
     nextInstruction,
+    distanceToManeuver,
+    maneuverAction,
+    stepDetail,
     remainingDistance,
     remainingDurationSec,
     isComplete,

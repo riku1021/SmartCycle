@@ -30,7 +30,6 @@ import MapSideDrawer from "./MapSideDrawer";
 import { NavigationPanel } from "./NavigationPanel";
 import { NavRecenterButton } from "./NavRecenterButton";
 import { RouteMapLayer } from "./RouteMapLayer";
-import { RouteOriginDestinationBar } from "./RouteOriginDestinationBar";
 import { RoutePreviewPanel } from "./RoutePreviewPanel";
 import {
   computeBearing,
@@ -648,10 +647,6 @@ const MapComponent: FC = () => {
         </APIProvider>
       </div>
 
-      {routeViewMode === "preview" && selectedLot && (
-        <RouteOriginDestinationBar destinationName={selectedLot.name} onClose={handleCloseRoute} />
-      )}
-
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1123,7 +1118,10 @@ const MapComponent: FC = () => {
             onClick={navMapFollow.recenterOnUser}
           />
           <NavigationPanel
-            instruction={navigation.nextInstruction}
+            distanceToManeuverMeters={navigation.distanceToManeuver}
+            maneuverAction={navigation.maneuverAction}
+            stepDetail={navigation.stepDetail}
+            maneuver={navigation.currentStep?.maneuver}
             remainingDistanceMeters={navigation.remainingDistance}
             remainingDurationSec={navigation.remainingDurationSec}
             isComplete={navigation.isComplete}

@@ -43,6 +43,7 @@ const fetchRoutesForMode = async ({
     origin,
     destination,
     travelMode: googleMode,
+    language: "ja",
   });
 
   return result.routes

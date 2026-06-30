@@ -67,3 +67,64 @@ export const computeBearing = (from: LatLng, to: LatLng): number => {
 
 export const isValidGeoHeading = (heading: number | null | undefined): heading is number =>
   heading != null && !Number.isNaN(heading) && heading >= 0;
+
+/** 次の操作までの距離（Google Maps 風の丸め） */
+export const formatManeuverAheadDistance = (meters: number): string => {
+  if (meters >= 1000) {
+    return `${(meters / 1000).toFixed(1)} km 先`;
+  }
+  if (meters >= 200) {
+    return `${Math.round(meters / 100) * 100} m 先`;
+  }
+  if (meters >= 50) {
+    return `${Math.round(meters / 50) * 50} m 先`;
+  }
+  return `${Math.max(1, Math.round(meters))} m 先`;
+};
+
+const MANEUVER_LABELS: Record<string, string> = {
+  "turn-slight-left": "左方向へ",
+  "turn-sharp-left": "大きく左折",
+  "uturn-left": "Uターン",
+  "turn-left": "左折",
+  "turn-slight-right": "右方向へ",
+  "turn-sharp-right": "大きく右折",
+  "uturn-right": "Uターン",
+  "turn-right": "右折",
+  straight: "直進",
+  "ramp-left": "左のランプへ",
+  "ramp-right": "右のランプへ",
+  merge: "合流",
+  "fork-left": "左の分岐へ",
+  "fork-right": "右の分岐へ",
+  "roundabout-left": "環状交差点を左回り",
+  "roundabout-right": "環状交差点を右回り",
+  "keep-left": "左側を進む",
+  "keep-right": "右側を進む",
+  ferry: "フェリー",
+};
+
+export const maneuverToLabel = (maneuver: string | undefined): string | null => {
+  if (!maneuver) return null;
+  return MANEUVER_LABELS[maneuver] ?? null;
+};
+
+/** 案内文から操作語を除いた道路名・補足を抽出 */
+export const extractStepDetail = (
+  instruction: string,
+  maneuverLabel: string | null
+): string | null => {
+  const trimmed = instruction.trim();
+  if (!trimmed) return null;
+  if (!maneuverLabel) return trimmed;
+
+  const withoutLabel = trimmed
+    .replace(maneuverLabel, "")
+    .replace(/^[、,\s]+|[、,\s]+$/g, "")
+    .replace(/^(して|へ)/, "")
+    .replace(/[をへにで]+$/g, "")
+    .trim();
+
+  if (!withoutLabel || withoutLabel === trimmed) return trimmed;
+  return withoutLabel;
+};
