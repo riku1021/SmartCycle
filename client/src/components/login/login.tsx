@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
-import type { Map as LeafletMap } from "leaflet";
+import { AdvancedMarker, APIProvider, Map as GoogleMap } from "@vis.gl/react-google-maps";
 import type { FC, FormEvent, KeyboardEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   FaArrowRightToBracket,
   FaBicycle,
@@ -20,6 +20,16 @@ import {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID } from "@/config/env";
+
+const MAP_CENTER = { lat: 34.702485, lng: 135.495951 };
+
+const GUEST_LOTS = [
+  { id: "kitahama", lat: 34.69392, lng: 135.5016, color: "#10b981", label: "空き" },
+  { id: "umeda", lat: 34.70631, lng: 135.49887, color: "#f59e0b", label: "残少" },
+  { id: "honmachi", lat: 34.68462, lng: 135.50213, color: "#ef4444", label: "満車" },
+];
+
 function validateInputs(mode: "login" | "signup", email: string, password: string): string | null {
   if (!EMAIL_REGEX.test(email)) {
     return "有効なメールアドレス形式で入力してください。";
@@ -35,8 +45,6 @@ function validateInputs(mode: "login" | "signup", email: string, password: strin
 
 const LoginComponent: FC = () => {
   const navigate = useNavigate();
-  const mapRef = useRef<HTMLDivElement | null>(null);
-  const leafletMapRef = useRef<LeafletMap | null>(null);
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -45,64 +53,6 @@ const LoginComponent: FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // デフォルトでログインモーダルを表示
   const [showModal, setShowModal] = useState(true);
-
-  // ゲスト用マップ初期化
-  useEffect(() => {
-    const mapEl = mapRef.current;
-    if (!mapEl) return;
-
-    // cancelled フラグ: クリーンアップ後の非同期コールバックを無効化
-    let cancelled = false;
-
-    import("leaflet").then((L) => {
-      // クリーンアップ済み または 既に初期化済みなら何もしない
-      if (cancelled) return;
-      if ((mapEl as HTMLElement & { _leaflet_id?: string })._leaflet_id) return;
-
-      const authMap = L.map(mapEl, { zoomControl: false }).setView([34.702485, 135.495951], 15);
-      leafletMapRef.current = authMap;
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-      }).addTo(authMap);
-
-      // 駐輪場マーカー
-      const makePinIcon = (color: string, label: string) =>
-        L.divIcon({
-          className: "",
-          html: `<div style="
-            width:44px;height:44px;border-radius:50%;
-            border:3px solid #fff;
-            box-shadow:0 4px 10px rgba(0,0,0,0.25);
-            display:flex;flex-direction:column;justify-content:center;align-items:center;
-            color:#fff;font-weight:800;font-size:0.7rem;background:${color};
-            cursor:pointer;
-          ">${label}</div>`,
-          iconSize: [44, 44],
-          iconAnchor: [22, 44],
-        });
-
-      L.marker([34.69392, 135.5016], { icon: makePinIcon("#10b981", "空き") })
-        .addTo(authMap)
-        .bindPopup("北浜サイクルポート<br>空き: 12台");
-      L.marker([34.70631, 135.49887], { icon: makePinIcon("#f59e0b", "残少") })
-        .addTo(authMap)
-        .bindPopup("梅田ステーション東<br>空き: 5台");
-      L.marker([34.68462, 135.50213], { icon: makePinIcon("#ef4444", "満車") })
-        .addTo(authMap)
-        .bindPopup("本町サイクルデッキ<br>空き: 0台");
-    });
-
-    return () => {
-      // 非同期コールバックをキャンセル
-      cancelled = true;
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-      }
-    };
-  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -146,10 +96,44 @@ const LoginComponent: FC = () => {
     <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
       {/* ===== ゲスト用マップ（フルスクリーン背景） ===== */}
       <div
-        ref={mapRef}
         id="auth-map"
         style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 0 }}
-      />
+      >
+        <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+          <GoogleMap
+            style={{ width: "100%", height: "100%" }}
+            defaultCenter={MAP_CENTER}
+            defaultZoom={15}
+            gestureHandling="greedy"
+            disableDefaultUI
+            mapId={GOOGLE_MAPS_MAP_ID}
+          >
+            {GUEST_LOTS.map((lot) => (
+              <AdvancedMarker key={lot.id} position={{ lat: lot.lat, lng: lot.lng }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    border: "3px solid #fff",
+                    boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: "0.7rem",
+                    background: lot.color,
+                    cursor: "pointer",
+                  }}
+                >
+                  {lot.label}
+                </div>
+              </AdvancedMarker>
+            ))}
+          </GoogleMap>
+        </APIProvider>
+      </div>
 
       {/* ===== トップバー ===== */}
       <div className="auth-top-bar" style={{ zIndex: 100 }}>
