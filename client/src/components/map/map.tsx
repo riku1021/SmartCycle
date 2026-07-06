@@ -114,30 +114,6 @@ const lotStatusClass = (
   return "free";
 };
 
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    title: "予約完了",
-    text: "北浜サイクルポートの予約が完了しました。",
-    date: "5分前",
-    unread: true,
-  },
-  {
-    id: 2,
-    title: "空き情報更新",
-    text: "本町サイクルデッキに空きが出ました（3台）",
-    date: "20分前",
-    unread: true,
-  },
-  {
-    id: 3,
-    title: "利用完了",
-    text: "梅田ステーション東の利用が完了しました。",
-    date: "昨日",
-    unread: false,
-  },
-];
-
 type MapInnerProps = {
   lots: ParkingLot[];
   currentLatLng: [number, number];
@@ -320,7 +296,6 @@ const MapComponent: FC = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotif, setShowNotif] = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [showFloorPlan, setShowFloorPlan] = useState(false);
   const [reserveHours, setReserveHours] = useState(1);
@@ -363,7 +338,6 @@ const MapComponent: FC = () => {
     });
   }, []);
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
   const selectedLot = selectedLotId ? lots.find((l) => l.id === selectedLotId) : null;
 
   const getStatusClass = useCallback(
@@ -613,16 +587,6 @@ const MapComponent: FC = () => {
             : lot
         )
       );
-      setNotifications((prev) => [
-        {
-          id: Date.now(),
-          title: "予約完了",
-          text: `${selectedLot.name}の予約が完了しました。`,
-          date: "今",
-          unread: true,
-        },
-        ...prev,
-      ]);
     } catch {
       setMapMessage("予約に失敗しました。時間をおいて再度お試しください。");
     } finally {
@@ -719,11 +683,6 @@ const MapComponent: FC = () => {
               }}
             >
               <FaBell />
-              {unreadCount > 0 && (
-                <span className="notif-badge" id="notif-badge">
-                  {unreadCount}
-                </span>
-              )}
             </button>
           ) : (
             <button type="button" className="login-top-btn" onClick={() => setShowLoginModal(true)}>
@@ -734,7 +693,7 @@ const MapComponent: FC = () => {
         </div>
       </div>
 
-      {/* ===== 通知パネル ===== */}
+      {/* ===== お知らせパネル ===== */}
       {showNotif && (
         <div
           className="modal-overlay"
@@ -768,72 +727,29 @@ const MapComponent: FC = () => {
                 borderBottom: "1px solid var(--border)",
               }}
             >
-              <strong style={{ fontSize: "1rem" }}>通知</strong>
-              <button
-                type="button"
-                onClick={() => {
-                  setNotifications((n) => n.map((x) => ({ ...x, unread: false })));
-                }}
+              <strong style={{ fontSize: "1rem" }}>お知らせ</strong>
+            </div>
+
+            {/* LINE友達追加ボタンエリア */}
+            <div style={{ padding: "32px 20px", textAlign: "center", background: "#f8f9fa" }}>
+              <div
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--primary)",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  cursor: "pointer",
+                  marginBottom: "16px",
+                  fontSize: "0.95rem",
+                  color: "var(--text)",
+                  fontWeight: 600,
                 }}
               >
-                すべて既読にする
-              </button>
-            </div>
-            <div className="notice-list">
-              {notifications.map((n) => (
-                <div key={n.id} className={`notice-card ${n.unread ? "unread" : ""}`}>
-                  <div className="notice-icon">
-                    {n.unread ? <FaCircleCheck style={{ color: "var(--primary)" }} /> : <FaBell />}
-                  </div>
-                  <button
-                    type="button"
-                    className="notice-body"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      width: "100%",
-                      padding: 0,
-                    }}
-                    onClick={() =>
-                      setNotifications((prev) =>
-                        prev.map((x) => (x.id === n.id ? { ...x, unread: false } : x))
-                      )
-                    }
-                  >
-                    <div className="notice-title">{n.title}</div>
-                    <div className="notice-text">{n.text}</div>
-                    <div className="notice-date">{n.date}</div>
-                  </button>
-                  <button
-                    type="button"
-                    className="notice-delete-btn"
-                    onClick={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))}
-                  >
-                    <FaXmark />
-                  </button>
-                </div>
-              ))}
-              {notifications.length === 0 && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "32px",
-                    color: "var(--text2)",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  通知はありません
-                </div>
-              )}
+                LINE連携で通知を受け取れます
+              </div>
+              <a href="https://lin.ee/WwWQtnw">
+                <img
+                  src="https://scdn.line-apps.com/n/line_add_friends/btn/ja.png"
+                  alt="友だち追加"
+                  height="36"
+                  style={{ border: "none" }}
+                />
+              </a>
             </div>
           </div>
         </div>
