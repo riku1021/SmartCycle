@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { AdvancedMarker, APIProvider, Map as GoogleMap, useMap } from "@vis.gl/react-google-maps";
 import type { FC } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,14 +14,17 @@ import {
   FaMagnifyingGlass,
   FaMap,
   FaStar,
+  FaUser,
   FaXmark,
 } from "react-icons/fa6";
 import { fetchParkingLots } from "@/api/parking-lots";
 import { createReservation } from "@/api/reservations";
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID } from "@/config/env";
 import { isDevUser } from "@/lib/adminRole";
+import { getAccessToken } from "@/lib/apiClient";
 import { EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
+import LoginModal from "../login/LoginModal";
 import { CurrentLocationMarker } from "./CurrentLocationMarker";
 import { useDirectionsRoute } from "./hooks/useDirectionsRoute";
 import { useInAppNavigation } from "./hooks/useInAppNavigation";
@@ -221,7 +224,11 @@ const MapInner: FC<MapInnerProps> = ({
 
 const MapComponent: FC = () => {
   const navigate = useNavigate();
+  const { login: openLoginFromSearch } = useSearch({ strict: false }) as { login?: boolean };
   const mapRef = useRef<google.maps.Map | null>(null);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!getAccessToken());
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [lots, setLots] = useState<ParkingLot[]>(INITIAL_LOTS);
   const [currentLatLng, setCurrentLatLng] = useState<[number, number]>([
@@ -326,6 +333,27 @@ const MapComponent: FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const [showFavorites, setShowFavorites] = useState(false);
+
+  useEffect(() => {
+    if (openLoginFromSearch) {
+      setShowLoginModal(true);
+    }
+  }, [openLoginFromSearch]);
+
+  const requireAuth = useCallback(
+    (action: () => void) => {
+      if (isLoggedIn) {
+        action();
+        return;
+      }
+      setShowLoginModal(true);
+    },
+    [isLoggedIn]
+  );
+
+  const handleLoginSuccess = useCallback(() => {
+    setIsLoggedIn(true);
+  }, []);
 
   const toggleFavorite = useCallback((id: string) => {
     setFavoriteLotIds((prev) => {
@@ -650,38 +678,47 @@ const MapComponent: FC = () => {
       {/* ===== トップバー ===== */}
       <div className="app-top-bar">
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <button
-            type="button"
-            className="top-action-btn"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="メニューを開く"
-            style={{ width: "42px", height: "42px" }}
-          >
-            <FaBars />
-          </button>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              className="top-action-btn"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="メニューを開く"
+              style={{ width: "42px", height: "42px" }}
+            >
+              <FaBars />
+            </button>
+          ) : null}
           <div className="app-logo-small">
             <FaBicycle style={{ fontSize: "1.4rem" }} />
             <span>SmartCycle</span>
           </div>
         </div>
         <div className="app-top-actions">
-          <button
-            type="button"
-            className="top-action-btn notif-bell-btn"
-            id="notif-btn"
-            onClick={() => {
-              setShowNotif(!showNotif);
-              setShowSearch(false);
-              setShowFavorites(false);
-            }}
-          >
-            <FaBell />
-            {unreadCount > 0 && (
-              <span className="notif-badge" id="notif-badge">
-                {unreadCount}
-              </span>
-            )}
-          </button>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              className="top-action-btn notif-bell-btn"
+              id="notif-btn"
+              onClick={() => {
+                setShowNotif(!showNotif);
+                setShowSearch(false);
+                setShowFavorites(false);
+              }}
+            >
+              <FaBell />
+              {unreadCount > 0 && (
+                <span className="notif-badge" id="notif-badge">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          ) : (
+            <button type="button" className="login-top-btn" onClick={() => setShowLoginModal(true)}>
+              <FaUser style={{ display: "inline-block", marginRight: "4px" }} />
+              ログイン
+            </button>
+          )}
         </div>
       </div>
 
@@ -1043,12 +1080,14 @@ const MapComponent: FC = () => {
             <button
               type="button"
               className="right-panel-btn destination-btn"
-              onClick={() => {
-                setShowSearch(true);
-                setPanelOpen(false);
-                setShowNotif(false);
-                setShowFavorites(false);
-              }}
+              onClick={() =>
+                requireAuth(() => {
+                  setShowSearch(true);
+                  setPanelOpen(false);
+                  setShowNotif(false);
+                  setShowFavorites(false);
+                })
+              }
             >
               <div className="btn-icon-box dest">
                 <FaMagnifyingGlass />
@@ -1061,12 +1100,14 @@ const MapComponent: FC = () => {
             <button
               type="button"
               className="right-panel-btn my-btn"
-              onClick={() => {
-                setShowFavorites(true);
-                setPanelOpen(false);
-                setShowSearch(false);
-                setShowNotif(false);
-              }}
+              onClick={() =>
+                requireAuth(() => {
+                  setShowFavorites(true);
+                  setPanelOpen(false);
+                  setShowSearch(false);
+                  setShowNotif(false);
+                })
+              }
             >
               <div className="btn-icon-box my">
                 <FaStar />
@@ -1079,7 +1120,7 @@ const MapComponent: FC = () => {
             <button
               type="button"
               className="right-panel-btn history-btn"
-              onClick={() => void navigate({ to: "/reservations" })}
+              onClick={() => requireAuth(() => void navigate({ to: "/reservations" }))}
             >
               <div className="btn-icon-box history">
                 <FaCalendarCheck />
@@ -1349,7 +1390,20 @@ const MapComponent: FC = () => {
       )}
 
       {/* ===== サイドドロワー (Admin/Dev) ===== */}
-      <MapSideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      {isLoggedIn ? (
+        <MapSideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      ) : null}
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false);
+          if (openLoginFromSearch) {
+            void navigate({ to: "/map", search: {}, replace: true });
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </div>
   );
 };

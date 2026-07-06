@@ -1,5 +1,4 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import LoginComponent from "@/components/login/login";
 import { clearAccessToken, getAccessToken } from "@/lib/apiClient";
 
 export const Route = createFileRoute("/login/")({
@@ -7,16 +6,13 @@ export const Route = createFileRoute("/login/")({
     logout: search.logout === "1" || search.logout === true,
   }),
   beforeLoad: ({ search }) => {
-    // ?logout=1 があればトークンをクリアして続行
-    if ((search as { logout?: boolean }).logout) {
+    if (search.logout) {
       clearAccessToken();
-      return;
+      throw redirect({ to: "/map" });
     }
     if (getAccessToken()) {
       throw redirect({ to: "/map" });
     }
+    throw redirect({ to: "/map", search: { login: true } });
   },
-  component: LoginComponent,
 });
-
-export default LoginComponent;

@@ -6,7 +6,7 @@ import { getAccessToken } from "@/lib/apiClient";
 export const Route = createFileRoute("/users/")({
   beforeLoad: () => {
     if (!getAccessToken()) {
-      throw redirect({ to: "/login" });
+      throw redirect({ to: "/map", search: { login: true } });
     }
     const role = getUserRole();
     if (role !== "dev") {

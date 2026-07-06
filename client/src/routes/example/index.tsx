@@ -36,7 +36,7 @@ const Example: FC = () => {
 export const Route = createFileRoute("/example/")({
   beforeLoad: () => {
     if (!getAccessToken()) {
-      throw redirect({ to: "/login" });
+      throw redirect({ to: "/map", search: { login: true } });
     }
   },
   component: Example,

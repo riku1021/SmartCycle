@@ -76,7 +76,7 @@ const SettingsComponent: FC = () => {
     // clearAccessToken() で既にトークン削除済みのため ?logout=1 不要
     clearAccessToken();
     document.body.classList.remove("dark-theme");
-    void navigate({ to: "/login" });
+    void navigate({ to: "/map" });
   };
 
   const handleReset = () => {
@@ -84,7 +84,7 @@ const SettingsComponent: FC = () => {
     localStorage.clear();
     sessionStorage.removeItem(DARK_KEY);
     document.body.classList.remove("dark-theme");
-    void navigate({ to: "/login" });
+    void navigate({ to: "/map" });
   };
 
   return (

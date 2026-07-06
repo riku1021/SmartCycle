@@ -5,7 +5,7 @@ import { getAccessToken } from "@/lib/apiClient";
 export const Route = createFileRoute("/settings/")({
   beforeLoad: () => {
     if (!getAccessToken()) {
-      throw redirect({ to: "/login" });
+      throw redirect({ to: "/map", search: { login: true } });
     }
   },
   component: SettingsComponent,
