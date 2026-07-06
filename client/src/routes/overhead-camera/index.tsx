@@ -11,7 +11,7 @@ export const Route = createFileRoute("/overhead-camera/")({
   },
   beforeLoad: () => {
     if (!getAccessToken()) {
-      throw redirect({ to: "/login" });
+      throw redirect({ to: "/map", search: { login: true } });
     }
     if (!isDevUser()) {
       throw redirect({ to: "/map" });

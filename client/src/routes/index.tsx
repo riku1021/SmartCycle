@@ -9,10 +9,7 @@ const RootEntryComponent = () => {
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
     const token = getAccessToken();
-    if (!token) {
-      throw redirect({ to: "/login" });
-    }
-    if (isAdminUser()) {
+    if (token && isAdminUser()) {
       throw redirect({ to: "/dashboard" });
     }
     throw redirect({ to: "/map" });

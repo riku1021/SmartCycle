@@ -73,7 +73,7 @@ const SidebarMenuContent: FC<SidebarMenuContentProps> = ({ isActivePath, onItemC
         return;
       }
       clearAccessToken();
-      await navigate({ to: "/login" });
+      await navigate({ to: "/map" });
     }, 100);
   };
 
