@@ -62,9 +62,9 @@ const LoginComponent: FC = () => {
       const authMap = L.map(mapEl, { zoomControl: false }).setView([34.702485, 135.495951], 15);
       leafletMapRef.current = authMap;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+      L.tileLayer("https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+        maxZoom: 20,
+        attribution: '&copy; <a href="https://www.google.com/intl/ja/help/terms_maps/">Google</a>',
       }).addTo(authMap);
 
       // 駐輪場マーカー
