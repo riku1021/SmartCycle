@@ -20,7 +20,7 @@ import {
 import { fetchParkingLots } from "@/api/parking-lots";
 import { createReservation } from "@/api/reservations";
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID } from "@/config/env";
-import { isDevUser } from "@/lib/adminRole";
+import { isAdminOrDevUser, isDevUser } from "@/lib/adminRole";
 import { getAccessToken } from "@/lib/apiClient";
 import { EV3_TOTAL_SLOTS } from "@/lib/ev3Parking";
 import { FloorPlanModal } from "../floorPlan/FloorPlanModal";
@@ -679,15 +679,27 @@ const MapComponent: FC = () => {
       <div className="app-top-bar">
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {isLoggedIn ? (
-            <button
-              type="button"
-              className="top-action-btn"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="メニューを開く"
-              style={{ width: "42px", height: "42px" }}
-            >
-              <FaBars />
-            </button>
+            isAdminOrDevUser() ? (
+              <button
+                type="button"
+                className="top-action-btn"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="メニューを開く"
+                style={{ width: "42px", height: "42px" }}
+              >
+                <FaBars />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="top-action-btn"
+                onClick={() => void navigate({ to: "/settings" })}
+                aria-label="マイページを開く"
+                style={{ width: "42px", height: "42px" }}
+              >
+                <FaUser />
+              </button>
+            )
           ) : null}
           <div className="app-logo-small">
             <FaBicycle style={{ fontSize: "1.4rem" }} />
@@ -1390,7 +1402,7 @@ const MapComponent: FC = () => {
       )}
 
       {/* ===== サイドドロワー (Admin/Dev) ===== */}
-      {isLoggedIn ? (
+      {isLoggedIn && isAdminOrDevUser() ? (
         <MapSideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
       ) : null}
 
