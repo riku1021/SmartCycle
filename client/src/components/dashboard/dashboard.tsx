@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "@tanstack/react-router";
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaBars } from "react-icons/fa6";
 import { type DashboardSummary, fetchDashboardSummary } from "@/api/parking-status";
 import MapSideDrawer from "@/components/map/MapSideDrawer";
@@ -124,6 +124,7 @@ const DashboardComponent: FC = () => {
   const location = useLocation();
   const searchStr = location.searchStr;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isFullLotsModalOpen, setIsFullLotsModalOpen] = useState(false);
 
   let activeScreen = "dashboard";
   if (searchStr.includes("tab=management")) activeScreen = "management";
@@ -162,6 +163,20 @@ const DashboardComponent: FC = () => {
       : 100;
   const estimatedRevenue = summary.used_count * avgPrice * 24 * 30;
   const formattedRevenue = new Intl.NumberFormat("ja-JP").format(estimatedRevenue);
+  const fullLotsLabel = `満車リスト（${fullLots.length}）`;
+
+  useEffect(() => {
+    if (!isFullLotsModalOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsFullLotsModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullLotsModalOpen]);
 
   return (
     <div className="dashboard" style={{ display: "block" }}>
@@ -190,26 +205,6 @@ const DashboardComponent: FC = () => {
                 <div className="value">{isLoading ? "--" : `${summary.total_occupancy_rate}%`}</div>
               </div>
 
-              <div className="card">
-                <h3>満車リスト</h3>
-                {isLoading ? (
-                  <div className="dashboard-empty-state">読み込み中です</div>
-                ) : fullLots.length > 0 ? (
-                  <div className="full-lot-list">
-                    {fullLots.map((lot) => (
-                      <div className="full-lot-row" key={lot.id}>
-                        <div>
-                          <div className="full-lot-name">{lot.name}</div>
-                        </div>
-                        <span className="full-lot-badge">満車</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="dashboard-empty-state">現在、満車の駐輪場はありません</div>
-                )}
-              </div>
-
               <div className="chart-container card">
                 <h3>駐輪場別稼働率</h3>
                 <div className="occupancy-chart-scroll">
@@ -217,6 +212,65 @@ const DashboardComponent: FC = () => {
                 </div>
               </div>
             </div>
+
+            <button
+              type="button"
+              className={`full-lots-floating-button${isFullLotsModalOpen ? " is-open" : ""}`}
+              onClick={() => setIsFullLotsModalOpen((isOpen) => !isOpen)}
+              aria-expanded={isFullLotsModalOpen}
+              aria-controls="full-lots-modal"
+            >
+              {fullLotsLabel}
+            </button>
+
+            {isFullLotsModalOpen && (
+              <div className="full-lots-modal-layer">
+                <button
+                  type="button"
+                  className="full-lots-modal-backdrop"
+                  onClick={() => setIsFullLotsModalOpen(false)}
+                  aria-label="満車リストの背景を閉じる"
+                />
+                <div
+                  id="full-lots-modal"
+                  className="full-lots-modal"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="full-lots-modal-title"
+                >
+                  <div className="full-lots-modal-header">
+                    <h2 id="full-lots-modal-title">{fullLotsLabel}</h2>
+                    <button
+                      type="button"
+                      className="full-lots-modal-close"
+                      onClick={() => setIsFullLotsModalOpen(false)}
+                      aria-label="満車リストを閉じる"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="full-lots-modal-body">
+                    {isLoading ? (
+                      <div className="dashboard-empty-state">読み込み中です</div>
+                    ) : fullLots.length > 0 ? (
+                      <div className="full-lot-list">
+                        {fullLots.map((lot) => (
+                          <div className="full-lot-row" key={lot.id}>
+                            <div>
+                              <div className="full-lot-name">{lot.name}</div>
+                            </div>
+                            <span className="full-lot-badge">満車</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="dashboard-empty-state">現在、満車の駐輪場はありません</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
