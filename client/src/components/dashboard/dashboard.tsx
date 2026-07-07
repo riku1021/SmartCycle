@@ -3,30 +3,69 @@ import { useLocation } from "@tanstack/react-router";
 import type { FC } from "react";
 import { useState } from "react";
 import { FaBars } from "react-icons/fa6";
-import { fetchDashboardSummary } from "@/api/parking-status";
+import { type DashboardSummary, fetchDashboardSummary } from "@/api/parking-status";
 import MapSideDrawer from "@/components/map/MapSideDrawer";
 
+type LotSummary = DashboardSummary["occupancy_by_lot"][number];
+type LotOccupancyRate = {
+  name: string;
+  short_name: string;
+  occupancy_rate: number;
+};
+
+const calculateOccupancyRate = (lot: LotSummary) => {
+  if (lot.total_spots <= 0) return 0;
+  const rate = (lot.value / lot.total_spots) * 100;
+  return Math.min(100, Math.max(0, Math.round(rate)));
+};
+
+const isFullLot = (lot: LotSummary) => {
+  if (lot.total_spots <= 0) return false;
+  const availableSpots = Math.max(lot.total_spots - lot.value, 0);
+  return availableSpots === 0 || availableSpots < lot.total_spots * 0.05;
+};
+
 /* ── SVG 棒グラフ ── */
-const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number }[] }> = ({
-  data,
-}) => {
-  const maxValue = Math.max(...data.map((d) => d.value), 200);
-  const chartHeight = 160;
-  const barWidth = 44;
-  const gap = 56;
-  const leftPad = 45;
+const BarChartSvg: FC<{ data: LotOccupancyRate[] }> = ({ data }) => {
+  const maxValue = 100;
+  const chartHeight = 170;
+  const barWidth = 48;
+  const gap = 64;
+  const leftPad = 120;
+  const rightPad = 90;
+  const bottomPad = 120;
   const totalWidth = data.length * (barWidth + gap);
-  const yTicks = [0, 50, 100, 150, 200];
+  const chartWidth = Math.max(leftPad + totalWidth + rightPad, 720);
+  const chartViewHeight = chartHeight + bottomPad;
+  const yTicks = [0, 25, 50, 75, 100];
+
+  if (data.length === 0) {
+    return (
+      <svg
+        viewBox="0 0 320 180"
+        width="100%"
+        height="100%"
+        role="img"
+        aria-labelledby="bar-chart-empty-title"
+      >
+        <title id="bar-chart-empty-title">データなしの駐輪場別稼働率グラフ</title>
+        <text x="160" y="90" textAnchor="middle" fontSize={13} fill="var(--text-secondary)">
+          データがありません
+        </text>
+      </svg>
+    );
+  }
 
   return (
     <svg
-      viewBox={`0 0 ${leftPad + totalWidth + 20} ${chartHeight + 90}`}
-      width="100%"
+      viewBox={`0 0 ${chartWidth} ${chartViewHeight}`}
+      width={chartWidth}
       height="100%"
+      className="occupancy-chart-svg"
       role="img"
       aria-labelledby="bar-chart-title"
     >
-      <title id="bar-chart-title">エリア別稼働率の棒グラフ</title>
+      <title id="bar-chart-title">駐輪場別稼働率の棒グラフ</title>
       {yTicks.map((tick) => {
         const y = chartHeight - (tick / maxValue) * chartHeight;
         return (
@@ -40,17 +79,17 @@ const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number 
               strokeWidth={1}
             />
             <text x={leftPad - 8} y={y + 4} textAnchor="end" fontSize={11} fill="#94a3b8">
-              {tick}
+              {tick}%
             </text>
           </g>
         );
       })}
       {data.map((d, i) => {
-        const barHeight = (d.value / maxValue) * chartHeight;
+        const barHeight = (d.occupancy_rate / maxValue) * chartHeight;
         const x = leftPad + i * (barWidth + gap) + gap / 2;
         const y = chartHeight - barHeight;
         const labelX = x + barWidth / 2;
-        const labelY = chartHeight + 14;
+        const labelY = chartHeight + 28;
         return (
           <g key={d.name}>
             <rect x={x} y={y} width={barWidth} height={barHeight} rx={5} ry={5} fill="#6366f1" />
@@ -62,7 +101,7 @@ const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number 
               fontWeight={600}
               fill="#4f46e5"
             >
-              {d.value}
+              {d.occupancy_rate}%
             </text>
             <text
               x={labelX}
@@ -70,86 +109,13 @@ const BarChartSvg: FC<{ data: { name: string; short_name: string; value: number 
               textAnchor="end"
               fontSize={10}
               fill="var(--text-secondary)"
-              transform={`rotate(-40, ${labelX}, ${labelY})`}
+              transform={`rotate(-35, ${labelX}, ${labelY})`}
             >
               {d.short_name}
             </text>
           </g>
         );
       })}
-    </svg>
-  );
-};
-
-/* ── SVG ドーナツチャート ── */
-const DonutChartSvg: FC<{ data: { name: string; value: number; color: string }[] }> = ({
-  data,
-}) => {
-  const total = data.reduce((s, d) => s + d.value, 0);
-  const cx = 80,
-    cy = 80,
-    outerR = 70,
-    innerR = 48;
-  if (total === 0) {
-    return (
-      <svg
-        viewBox="0 0 160 160"
-        width="160"
-        height="160"
-        role="img"
-        aria-labelledby="donut-chart-empty-title"
-      >
-        <title id="donut-chart-empty-title">データなしのドーナツチャート</title>
-        <circle
-          cx={cx}
-          cy={cy}
-          r={(outerR + innerR) / 2}
-          fill="none"
-          stroke="var(--border-color)"
-          strokeWidth={outerR - innerR}
-        />
-      </svg>
-    );
-  }
-  let cumulativeAngle = -90;
-  const arcs = data.map((item) => {
-    const angle = (item.value / total) * 360;
-    const startAngle = cumulativeAngle;
-    cumulativeAngle += angle;
-    return { ...item, startAngle, angle };
-  });
-  const describeArc = (startAngle: number, endAngle: number, r1: number, r2: number) => {
-    const toRad = (a: number) => (a * Math.PI) / 180;
-    const x1 = cx + r2 * Math.cos(toRad(startAngle)),
-      y1 = cy + r2 * Math.sin(toRad(startAngle));
-    const x2 = cx + r2 * Math.cos(toRad(endAngle)),
-      y2 = cy + r2 * Math.sin(toRad(endAngle));
-    const x3 = cx + r1 * Math.cos(toRad(endAngle)),
-      y3 = cy + r1 * Math.sin(toRad(endAngle));
-    const x4 = cx + r1 * Math.cos(toRad(startAngle)),
-      y4 = cy + r1 * Math.sin(toRad(startAngle));
-    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-    return `M ${x1} ${y1} A ${r2} ${r2} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${r1} ${r1} 0 ${largeArc} 0 ${x4} ${y4} Z`;
-  };
-  return (
-    <svg
-      viewBox="0 0 160 160"
-      width="100%"
-      height="100%"
-      style={{ maxWidth: "160px", maxHeight: "160px" }}
-      role="img"
-      aria-labelledby="donut-chart-title"
-    >
-      <title id="donut-chart-title">ステータス分布のドーナツチャート</title>
-      {arcs
-        .filter((a) => a.angle > 0)
-        .map((a) => (
-          <path
-            key={a.name}
-            d={describeArc(a.startAngle, a.startAngle + a.angle, innerR, outerR)}
-            fill={a.color}
-          />
-        ))}
     </svg>
   );
 };
@@ -180,6 +146,12 @@ const DashboardComponent: FC = () => {
     occupancy_by_lot: [],
     status_distribution: [],
   };
+  const lotOccupancyRates = summary.occupancy_by_lot.map((lot) => ({
+    name: lot.name,
+    short_name: lot.short_name,
+    occupancy_rate: calculateOccupancyRate(lot),
+  }));
+  const fullLots = summary.occupancy_by_lot.filter(isFullLot);
 
   // 予測収益の簡単な試算 (利用台数 * 平均単価 * 24時間 * 30日)
   // より正確な計算は別APIになるかもしれないが、今回はモックの代わりに試算式を用いる
@@ -212,62 +184,36 @@ const DashboardComponent: FC = () => {
               <div className="user-info">システム管理者</div>
             </header>
 
-            <div className="kpi-cards">
+            <div className="dashboard-stack">
               <div className="card">
-                <h3>稼働率（全体）</h3>
+                <h3>稼働率</h3>
                 <div className="value">{isLoading ? "--" : `${summary.total_occupancy_rate}%`}</div>
               </div>
-              <div className="card">
-                <h3>満車状態の駐輪場</h3>
-                <div className="value">{isLoading ? "--" : `${summary.full_lots_count} 箇所`}</div>
-              </div>
-              <div className="card">
-                <h3>アクティブデバイス</h3>
-                <div
-                  className="value"
-                  style={{ color: summary.abnormal_devices_count > 0 ? "#ef4444" : "inherit" }}
-                >
-                  {isLoading
-                    ? "--"
-                    : summary.abnormal_devices_count > 0
-                      ? `${summary.abnormal_devices_count}台異常`
-                      : "100% (正常)"}
-                </div>
-              </div>
-            </div>
 
-            <div className="charts-section">
+              <div className="card">
+                <h3>満車リスト</h3>
+                {isLoading ? (
+                  <div className="dashboard-empty-state">読み込み中です</div>
+                ) : fullLots.length > 0 ? (
+                  <div className="full-lot-list">
+                    {fullLots.map((lot) => (
+                      <div className="full-lot-row" key={lot.id}>
+                        <div>
+                          <div className="full-lot-name">{lot.name}</div>
+                        </div>
+                        <span className="full-lot-badge">満車</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="dashboard-empty-state">現在、満車の駐輪場はありません</div>
+                )}
+              </div>
+
               <div className="chart-container card">
-                <h3>エリア別稼働率</h3>
-                <div style={{ height: "300px", marginTop: "16px" }}>
-                  <BarChartSvg data={summary.occupancy_by_lot} />
-                </div>
-              </div>
-            </div>
-
-            <div className="table-section card">
-              <h3>ステータス分布</h3>
-              <div className="donut-chart-flex">
-                <DonutChartSvg data={summary.status_distribution} />
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {summary.status_distribution.map((item) => (
-                    <div
-                      key={item.name}
-                      style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                    >
-                      <div
-                        style={{
-                          width: "12px",
-                          height: "12px",
-                          borderRadius: "50%",
-                          backgroundColor: item.color,
-                        }}
-                      />
-                      <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>
-                        {item.name}
-                      </span>
-                    </div>
-                  ))}
+                <h3>駐輪場別稼働率</h3>
+                <div className="occupancy-chart-scroll">
+                  <BarChartSvg data={lotOccupancyRates} />
                 </div>
               </div>
             </div>
