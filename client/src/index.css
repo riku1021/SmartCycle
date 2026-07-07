@@ -2311,6 +2311,13 @@ header {
   color: var(--text-primary);
 }
 
+.dashboard-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
 .charts-section {
   display: grid;
   grid-template-columns: 1fr;
@@ -2319,7 +2326,166 @@ header {
 }
 
 .chart-container {
-  height: 350px;
+  min-height: 430px;
+}
+
+.occupancy-chart-scroll {
+  height: 360px;
+  margin-top: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+}
+
+.occupancy-chart-svg {
+  display: block;
+  max-width: none;
+}
+
+.full-lot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.full-lot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.full-lot-row:last-child {
+  border-bottom: none;
+}
+
+.full-lot-name {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.full-lots-floating-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--primary-color);
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.25);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.full-lots-floating-button:hover {
+  background: #4338ca;
+}
+
+.full-lots-floating-button.is-open {
+  z-index: 1100;
+}
+
+.full-lots-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 72px 24px 24px;
+}
+
+.full-lots-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: rgba(15, 23, 42, 0.45);
+  cursor: pointer;
+}
+
+.full-lots-modal {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+.full-lots-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.full-lots-modal-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.full-lots-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.full-lots-modal-close:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-primary);
+}
+
+.full-lots-modal-body {
+  flex: 0 1 auto;
+  overflow-y: auto;
+  padding: 8px 24px 24px;
+}
+
+.full-lot-badge {
+  flex: 0 0 auto;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
+.dashboard-empty-state {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-top: 16px;
+  padding: 20px 0;
 }
 
 table {
@@ -2473,6 +2639,26 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-stack {
+    gap: 16px;
+  }
+
+  .full-lots-floating-button {
+    right: 16px;
+    bottom: 16px;
+    min-width: 136px;
+  }
+
+  .full-lots-modal-layer {
+    align-items: flex-start;
+    padding: 72px 16px 16px;
+  }
+
+  .full-lots-modal {
+    max-height: calc(100vh - 104px);
+    border-radius: 16px;
+  }
+
   .report-grid {
     grid-template-columns: 1fr;
   }
@@ -2499,20 +2685,5 @@ th {
     width: auto;
     padding: 10px 16px;
     font-size: 0.85rem;
-  }
-}
-
-.donut-chart-flex {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-top: 16px;
-}
-
-@media (max-width: 768px) {
-  .donut-chart-flex {
-    flex-direction: column;
-    gap: 16px;
-    text-align: center;
   }
 }
