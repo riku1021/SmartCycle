@@ -119,7 +119,10 @@ curl http://localhost:8000/api/parking-lots
 - `server/src/modules/overhead_camera/api.py` — 俯瞰カメラ API
 - `server/src/modules/camera/service.py` — YOLOv8 推論ロジック（共通）
 
-### TODO
+## ライセンス
 
-- モデル差し替え（`service.py` の `_MODEL_PATH` を変更）
-- 認証/署名検証強化
+Copyright (C) 2026 Riku Ishikawa
+
+本プロジェクトは [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html)（GPL-3.0）の下で公開されています。改変・再配布する場合は、同じライセンス（GPL-3.0）の条件に従う必要があります。
+
+全文はリポジトリルートの [LICENSE](LICENSE) を参照してください。
